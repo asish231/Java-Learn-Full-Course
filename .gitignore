@@ -1,0 +1,22 @@
+# Java build artifacts
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Node.js
+web/node_modules/
+web/temp/
+
+# Cloned repo git internals (keep the data, skip nested .git)
+leetcode_companywise/.git/
+
+# OS files
+Thumbs.db
+.DS_Store

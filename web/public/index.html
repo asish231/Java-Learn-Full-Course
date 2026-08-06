@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Java Backend & DSA Studio - Interactive Terminal</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header>
+    <div class="logo-section">
+      <button class="icon-btn" id="toggleSidebarBtn" title="Toggle Sidebar">◀ Sidebar</button>
+      <span>🚀 Java Backend & DSA Studio</span>
+      <span class="logo-badge">ZERO-TO-HERO IDE</span>
+    </div>
+    <div class="header-controls">
+      <button class="btn btn-secondary" id="resetBtn">🔄 Reset Code</button>
+      <button class="btn btn-secondary" id="solutionBtn">💡 View Reference Code</button>
+      <button class="btn btn-primary" id="runBtn">▶ Run Code (Mac javac)</button>
+    </div>
+  </header>
+
+  <!-- Main Split Layout -->
+  <div class="app-container">
+
+    <!-- Left Sidebar: Modules & Problems -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title-row">
+          <h2>Learning Modules</h2>
+          <span id="problemCounter" style="font-size: 11px; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 10px; color: var(--accent-blue, #64ffda);">0 files</span>
+        </div>
+
+        <!-- Search input -->
+        <input type="text" id="searchInput" placeholder="🔍 Search problems, modules, or companies..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; margin-top: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.25); color: #fff; font-size: 12px;" />
+
+        <!-- Category Filters -->
+        <div class="category-filters" style="margin-top: 8px;">
+          <span class="category-chip active" data-cat="all">All</span>
+          <span class="category-chip" data-cat="Company Tracks">🏢 Company Tracks</span>
+          <span class="category-chip" data-cat="Backend Engineering">Backend</span>
+          <span class="category-chip" data-cat="Java & OOPs">Java & OOPs</span>
+          <span class="category-chip" data-cat="Data Structures & Algorithms">DSA</span>
+        </div>
+
+        <!-- Company Select Dropdown (visible when Company Tracks or All is selected) -->
+        <div id="companySelectContainer" style="margin-top: 8px; display: none;">
+          <label style="font-size: 11px; color: var(--accent-orange, #ff9800); font-weight: bold; display: block; margin-bottom: 3px;">SELECT TARGET COMPANY:</label>
+          <select id="companySelect" style="width: 100%; box-sizing: border-box; padding: 6px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: #1e1e2e; color: #fff; font-size: 12px;">
+            <option value="all">-- All Companies --</option>
+            <option value="google" selected>Google</option>
+            <option value="meta">Meta (Facebook)</option>
+            <option value="amazon">Amazon</option>
+            <option value="microsoft">Microsoft</option>
+            <option value="apple">Apple</option>
+            <option value="bloomberg">Bloomberg</option>
+            <option value="goldman-sachs">Goldman Sachs</option>
+            <option value="uber">Uber</option>
+            <option value="bytedance">ByteDance / TikTok</option>
+            <option value="atlassian">Atlassian</option>
+            <option value="adobe">Adobe</option>
+            <option value="netflix">Netflix</option>
+            <option value="salesforce">Salesforce</option>
+            <option value="nvidia">Nvidia</option>
+          </select>
+        </div>
+
+        <!-- Timeframe Filters -->
+        <div class="filter-tags" style="margin-top: 8px;">
+          <span class="filter-chip active" data-diff="all">All Levels</span>
+          <span class="filter-chip" data-diff="Easy">Easy</span>
+          <span class="filter-chip" data-diff="Medium">Medium</span>
+          <span class="filter-chip" data-diff="Hard">Hard</span>
+        </div>
+      </div>
+      <div class="problem-list" id="problemList">
+        <!-- Dynamically rendered problem cards grouped by module -->
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="workspace">
+
+      <!-- Left Pane: Problem Description & Collapsible Hints -->
+      <section class="problem-pane" id="problemPane">
+        <div class="tab-bar">
+          <div class="tab-group">
+            <div class="tab active" data-tab="desc">Description & Hints</div>
+            <div class="tab" data-tab="sol">Full Solution Guide</div>
+          </div>
+          <button class="icon-btn" id="toggleProblemPaneBtn" title="Collapse Description">◀ Hide Description</button>
+        </div>
+
+        <!-- Problem Description Tab -->
+        <div class="pane-content" id="tabDesc">
+          <div class="problem-title-area">
+            <h1 id="problemTitle">Select a problem</h1>
+            <span class="badge badge-easy" id="problemDiff">Easy</span>
+          </div>
+
+          <p class="description-text" id="problemDesc">Select a problem from the left sidebar to start learning.</p>
+
+          <div id="examplesContainer"></div>
+
+          <div class="hints-section">
+            <h3>💡 Hints & Interview Metrics</h3>
+            <div id="hintsContainer"></div>
+          </div>
+        </div>
+
+        <!-- Solution Tab with Reveal Card -->
+        <div class="pane-content" id="tabSol" style="display: none;">
+          <div class="solution-reveal-card" id="solutionRevealCard">
+            <h3>🔒 Practice Self-Assessment Mode</h3>
+            <p>Try implementing your solution in the code editor first! If you get stuck, click below to reveal the full reference code.</p>
+            <button class="btn btn-primary" id="revealSolutionBtn" style="margin-top: 12px;">🔓 Reveal Reference Solution</button>
+          </div>
+
+          <div id="solutionCodeContainer" style="display: none; margin-top: 16px;">
+            <h3 style="margin-bottom: 12px; color: var(--accent-green);">Full Reference Java Code</h3>
+            <pre class="example-box" id="solutionCodeDisplay"><code>Select a problem to view solution code.</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Pane: Code Editor & Console Terminal -->
+      <section class="editor-pane">
+        <div class="editor-header">
+          <div class="editor-controls-group">
+            <button class="icon-btn" id="expandProblemPaneBtn" title="Expand Problem Description" style="display: none;">▶ Show Description</button>
+            <span>Language: <strong>Java (JDK)</strong></span>
+          </div>
+          <span id="editorFilename">Solution.java</span>
+        </div>
+
+        <!-- Code Editor Area with Line Numbers -->
+        <div class="code-editor-container">
+          <div class="line-numbers" id="lineNumbers">1</div>
+          <textarea id="codeEditor" spellcheck="false" wrap="off" placeholder="// Write Java code here..."></textarea>
+        </div>
+
+        <!-- Console Terminal -->
+        <div class="console-pane" id="consolePane">
+          <div class="console-header" id="consoleHeader">
+            <div class="console-status">
+              <div class="status-indicator" id="statusIndicator"></div>
+              <span id="statusText">Console Terminal</span>
+            </div>
+            <div class="editor-controls-group">
+              <span id="elapsedTimeText" style="color: var(--accent-orange); font-family: 'Fira Code', monospace; margin-right: 8px;"></span>
+              <button class="icon-btn" id="toggleConsoleBtn" title="Minimize/Maximize Console">▼</button>
+            </div>
+          </div>
+          <div class="console-body" id="consoleBody">
+            <span style="color: #666;">Click "Run Code" to compile and execute your Java code live on Mac...</span>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
