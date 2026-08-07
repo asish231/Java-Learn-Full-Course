@@ -1,10 +1,16 @@
 {
-  "name": "leetcode-dsa-studio",
-  "version": "1.0.0",
-  "description": "Interactive LeetCode-style Web UI & Java Execution Engine",
+  "name": "java-dsa-studio",
+  "version": "2.0.0",
+  "description": "Guided Java DSA curriculum, graded interview questions and an AI tutor, in one local studio",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "verify": "node tools/verify-bank.js",
+    "smoke": "node tools/smoke.js",
+    "check": "node tools/smoke.js && node tools/verify-bank.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "cors": "^2.8.5",

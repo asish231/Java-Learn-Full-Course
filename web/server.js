@@ -1,432 +1,398 @@
+/**
+ * Java DSA Studio — server.
+ *
+ * Layers:
+ *   data/curriculum.js   what can be learned (chapters, topics, paths)
+ *   data/bank/*.js       curated problems with real statements + test cases
+ *   lib/catalog.js       merges src/ lessons and company CSVs into a catalog
+ *   lib/judge.js         compiles and grades Java submissions
+ *   lib/store.js         profile, progress, streaks, tutor memory (on disk)
+ *   lib/tutor.js         Mercury 2 tutor with context and memory
+ */
 const express = require('express');
 const cors = require('cors');
-const { exec } = require('child_process');
-const fs = require('fs');
 const path = require('path');
+
+const catalog = require('./lib/catalog');
+const judge = require('./lib/judge');
+const store = require('./lib/store');
+const tutor = require('./lib/tutor');
+const { CHAPTERS, PATHS, TOPICS, getPath } = require('./data/curriculum');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Ensure temp build directory exists
-const tempDir = path.join(__dirname, 'temp');
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir, { recursive: true });
-}
-
-// Module display name map
-const moduleNameMap = {
-  'module01_foundations': '01. Foundations & Big-O',
-  'module02_arrays_and_strings': '02. Arrays & Strings',
-  'module03_linked_lists': '03. Linked Lists',
-  'module04_stacks_and_queues': '04. Stacks & Queues',
-  'module05_hashing': '05. Hashing & HashMaps',
-  'module06_trees_and_bst': '06. Trees & BST',
-  'module07_heaps_and_priority_queues': '07. Heaps & Priority Queues',
-  'module08_disjoint_set_and_trie': '08. Trie & Disjoint Set',
-  'module09_sorting_and_searching': '09. Sorting & Searching',
-  'module10_recursion_and_backtracking': '10. Recursion & Backtracking',
-  'module11_greedy_algorithms': '11. Greedy Algorithms',
-  'module12_dynamic_programming': '12. Dynamic Programming',
-  'module13_graph_algorithms': '13. Graph Algorithms',
-  'backend_engineering': 'Backend Engineering Mastery',
-  'quickstart': '00. Java Quickstart & Collections',
-  'micro': '00. Micro Exercises'
+const asyncRoute = (handler) => (req, res) => {
+  Promise.resolve(handler(req, res)).catch((err) => {
+    console.error(`[api] ${req.method} ${req.path}:`, err.message);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
 };
 
-function cleanTitle(filename) {
-  let name = filename.replace(/\.java$/, '');
-  name = name.replace(/^Level\d+_/i, '');
-  name = name.replace(/([a-z])([A-Z])/g, '$1 $2');
-  name = name.replace(/_/g, ' ');
-  return name.trim();
-}
+// ===========================================================================
+// Bootstrap — everything the SPA needs for its first paint
+// ===========================================================================
 
-function getDifficulty(filename) {
-  if (/Level1/i.test(filename)) return 'Easy';
-  if (/Level2/i.test(filename)) return 'Medium';
-  if (/Level3/i.test(filename)) return 'Hard';
-  if (/Quickstart/i.test(filename)) return 'Easy';
-  return 'Medium';
-}
-
-function getCategory(dirName) {
-  if (dirName === 'backend_engineering') return 'Backend Engineering';
-  if (dirName === 'quickstart' || dirName === 'micro') return 'Java & OOPs';
-  return 'Data Structures & Algorithms';
-}
-
-function parseJavadoc(content) {
-  const match = content.match(/\/\*\*([\s\S]*?)\*\//);
-  if (match) {
-    const lines = match[1].split('\n')
-      .map(line => line.replace(/^\s*\*\s?/, '').trim())
-      .filter(line => line.length > 0 && !line.startsWith('@'));
-    if (lines.length > 0) return lines.join(' ');
-  }
-  return null;
-}
-
-// CSV Line Parser supporting quotes
-function parseCSVLine(line) {
-  const row = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      row.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  row.push(current.trim());
-  return row;
-}
-
-function parseCompanyCSV(filePath) {
-  if (!fs.existsSync(filePath)) return [];
-  const content = fs.readFileSync(filePath, 'utf8');
-  const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
-  if (lines.length <= 1) return [];
-
-  const results = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCSVLine(lines[i]);
-    if (cols.length >= 4) {
-      results.push({
-        id: cols[0],
-        url: cols[1],
-        title: cols[2],
-        difficulty: cols[3] || 'Medium',
-        acceptance: cols[4] || 'N/A',
-        frequency: cols[5] || 'N/A'
-      });
-    }
-  }
-  return results;
-}
-
-function formatCompanyName(slug) {
-  return slug
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-const companyDir = path.join(__dirname, '..', 'leetcode_companywise');
-
-// Helper to get available companies list
-function getAvailableCompanies() {
-  if (!fs.existsSync(companyDir)) return [];
-  const entries = fs.readdirSync(companyDir, { withFileTypes: true });
-  const companies = [];
-
-  for (const entry of entries) {
-    if (entry.isDirectory() && !entry.name.startsWith('.')) {
-      companies.push({
-        id: entry.name,
-        name: formatCompanyName(entry.name)
-      });
-    }
-  }
-  companies.sort((a, b) => a.name.localeCompare(b.name));
-  return companies;
-}
-
-function scanWorkspaceSrc() {
-  const srcDir = path.join(__dirname, '..', 'src');
-  const catalog = [];
-
-  if (fs.existsSync(srcDir)) {
-    const dirs = fs.readdirSync(srcDir, { withFileTypes: true });
-
-    for (const dir of dirs) {
-      if (dir.isDirectory()) {
-        const dirName = dir.name;
-        const dirPath = path.join(srcDir, dirName);
-        const category = getCategory(dirName);
-        const moduleName = moduleNameMap[dirName] || dirName.replace(/_/g, ' ').toUpperCase();
-
-        const files = fs.readdirSync(dirPath);
-        for (const file of files) {
-          if (file.endsWith('.java')) {
-            const filePath = path.join(dirPath, file);
-            const content = fs.readFileSync(filePath, 'utf8');
-            const id = `${dirName}-${file.replace(/\.java$/, '').toLowerCase()}`;
-            const title = cleanTitle(file);
-            const difficulty = getDifficulty(file);
-            const javadocDesc = parseJavadoc(content);
-            const description = javadocDesc || `Practice and explore implementation of ${title} in module ${moduleName}.`;
-
-            catalog.push({
-              id,
-              category,
-              moduleName,
-              title: `${file.replace(/\.java$/, '')}`,
-              difficulty,
-              description,
-              starterCode: content,
-              solutionCode: content,
-              filePath: `src/${dirName}/${file}`,
-              examples: [],
-              hints: [
-                `💡 Source file location: src/${dirName}/${file}`,
-                `💡 Inspect the Java code and run it in the terminal to observe primitive operations and outputs.`
-              ]
-            });
-          }
-        }
-      }
-    }
-  }
-
-  // Scan company questions from leetcode_companywise
-  if (fs.existsSync(companyDir)) {
-    const defaultCompanies = ['google', 'amazon', 'meta', 'microsoft', 'apple', 'bloomberg', 'goldman-sachs', 'uber', 'bytedance', 'atlassian', 'adobe', 'netflix', 'salesforce', 'nvidia'];
-    
-    for (const compSlug of defaultCompanies) {
-      const compPath = path.join(companyDir, compSlug);
-      if (fs.existsSync(compPath)) {
-        const compName = formatCompanyName(compSlug);
-        
-        // Scan 30 days and 3 months for popular questions
-        const periodFiles = [
-          { file: 'thirty-days.csv', periodName: 'Last 30 Days' },
-          { file: 'three-months.csv', periodName: 'Last 3 Months' }
-        ];
-
-        for (const pf of periodFiles) {
-          const csvPath = path.join(compPath, pf.file);
-          const questions = parseCompanyCSV(csvPath);
-
-          for (const q of questions) {
-            const problemId = `company-${compSlug}-${pf.file.replace('.csv','')}-${q.id}`;
-            const starterCode = `import java.util.*;
-
-/**
- * Company Track: ${compName} (${pf.periodName})
- * Problem: #${q.id} - ${q.title}
- * Difficulty: ${q.difficulty} | Frequency: ${q.frequency} | Acceptance: ${q.acceptance}
- * LeetCode URL: ${q.url}
- */
-public class Solution {
-
-    public static void main(String[] args) {
-        System.out.println("=== Interview Practice: ${compName} ===");
-        System.out.println("Problem #${q.id}: ${q.title.replace(/"/g, '\\"')} (${q.difficulty})");
-        System.out.println("Interview Frequency: ${q.frequency} | Acceptance: ${q.acceptance}");
-        System.out.println("-------------------------------------------------");
-        
-        // TODO: Implement solution for ${q.title.replace(/"/g, '\\"')}
-        
-    }
-}
-`;
-
-            catalog.push({
-              id: problemId,
-              category: 'Company Tracks',
-              companySlug: compSlug,
-              companyName: compName,
-              timeframe: pf.file.replace('.csv',''),
-              moduleName: `🏢 ${compName} (${pf.periodName})`,
-              title: `#${q.id} - ${q.title}`,
-              difficulty: q.difficulty,
-              description: `LeetCode Interview Question #${q.id}: ${q.title}. Frequently asked in ${compName} technical interviews (${pf.periodName}). Frequency: ${q.frequency}, Acceptance Rate: ${q.acceptance}.`,
-              starterCode,
-              solutionCode: starterCode,
-              filePath: `leetcode_companywise/${compSlug}/${pf.file}`,
-              leetcodeUrl: q.url,
-              frequency: q.frequency,
-              acceptance: q.acceptance,
-              examples: [
-                { input: `LeetCode #${q.id} - ${q.title}`, output: `Target Company: ${compName}` }
-              ],
-              hints: [
-                `🎯 Company: ${compName} | Period: ${pf.periodName}`,
-                `📊 Interview Frequency: ${q.frequency} | Acceptance: ${q.acceptance}`,
-                `🔗 Direct LeetCode Link: ${q.url}`
-              ]
-            });
-          }
-        }
-      }
-    }
-  }
-
-  catalog.sort((a, b) => {
-    if (a.moduleName !== b.moduleName) {
-      return a.moduleName.localeCompare(b.moduleName);
-    }
-    return a.title.localeCompare(b.title);
+app.get('/api/bootstrap', asyncRoute((req, res) => {
+  res.json({
+    profile: store.getProfile(),
+    paths: PATHS,
+    chapters: catalog.chapterSummaries().map((c) => ({
+      id: c.id, icon: c.icon, title: c.title, track: c.track, order: c.order,
+      minutes: c.minutes, summary: c.summary, why: c.why, topics: c.topics,
+      objectives: c.objectives, prerequisites: c.prerequisites,
+      lessonCount: c.lessonCount,
+      lessons: c.lessons.map((l) => ({
+        id: l.id, title: l.title, level: l.level, levelName: l.levelName,
+        difficulty: l.difficulty, minutes: l.minutes, summary: l.summary, kind: l.kind
+      }))
+    })),
+    topics: TOPICS,
+    stats: catalog.stats(),
+    progress: store.getProgress(),
+    summary: store.summary(),
+    tutorReady: tutor.isConfigured(),
+    featuredCompanies: catalog.featuredCompanies(),
+    periods: catalog.PERIODS
   });
+}));
 
-  return catalog;
-}
+// ===========================================================================
+// Profile & progress
+// ===========================================================================
 
-// GET /api/companies - Return list of available companies
-app.get('/api/companies', (req, res) => {
-  res.json(getAvailableCompanies());
-});
+app.get('/api/profile', asyncRoute((req, res) => res.json(store.getProfile())));
 
-// GET /api/problems - Return all problems dynamically scanned
-app.get('/api/problems', (req, res) => {
-  try {
-    const catalog = scanWorkspaceSrc();
-    res.json(catalog);
-  } catch (err) {
-    console.error('[Scanner] Error scanning workspace:', err);
-    res.status(500).json({ error: 'Failed to scan workspace source files' });
-  }
-});
+app.post('/api/profile', asyncRoute((req, res) => {
+  res.json(store.saveProfile(req.body || {}));
+}));
 
-// GET /api/company-problems?company=google&period=thirty-days
-app.get('/api/company-problems', (req, res) => {
-  const { company = 'google', period = 'thirty-days' } = req.query;
-  const csvFile = period.endsWith('.csv') ? period : `${period}.csv`;
-  const filePath = path.join(companyDir, company, csvFile);
-  
-  const questions = parseCompanyCSV(filePath);
-  const compName = formatCompanyName(company);
+app.get('/api/progress', asyncRoute((req, res) => {
+  res.json({ progress: store.getProgress(), summary: store.summary() });
+}));
 
-  const formatted = questions.map(q => ({
-    id: `company-${company}-${period}-${q.id}`,
-    category: 'Company Tracks',
-    companySlug: company,
-    companyName: compName,
-    timeframe: period,
-    moduleName: `🏢 ${compName}`,
-    title: `#${q.id} - ${q.title}`,
-    difficulty: q.difficulty,
-    description: `LeetCode Interview Question #${q.id}: ${q.title}. Asked in ${compName} technical interviews. Frequency: ${q.frequency}, Acceptance: ${q.acceptance}.`,
-    starterCode: `import java.util.*;
+app.post('/api/progress/lesson', asyncRoute((req, res) => {
+  const { lessonId, status = 'completed', minutes = 0 } = req.body || {};
+  if (!lessonId) return res.status(400).json({ error: 'lessonId is required' });
+  res.json({ lesson: store.markLesson(lessonId, status, minutes), summary: store.summary() });
+}));
 
-/**
- * Company Track: ${compName} (${period})
- * Problem: #${q.id} - ${q.title}
- * Difficulty: ${q.difficulty} | Frequency: ${q.frequency} | Acceptance: ${q.acceptance}
- * LeetCode URL: ${q.url}
- */
-public class Solution {
+app.post('/api/progress/draft', asyncRoute((req, res) => {
+  const { problemId, code } = req.body || {};
+  if (!problemId) return res.status(400).json({ error: 'problemId is required' });
+  store.saveDraft(problemId, code || '');
+  res.json({ ok: true });
+}));
 
-    public static void main(String[] args) {
-        System.out.println("=== Interview Practice: ${compName} ===");
-        System.out.println("Problem #${q.id}: ${q.title.replace(/"/g, '\\"')} (${q.difficulty})");
-        System.out.println("Interview Frequency: ${q.frequency} | Acceptance: ${q.acceptance}");
-        System.out.println("-------------------------------------------------");
-        
-        // TODO: Implement solution for ${q.title.replace(/"/g, '\\"')}
-        
-    }
-}
-`,
-    solutionCode: `import java.util.*;
+app.post('/api/progress/reset', asyncRoute((req, res) => {
+  store.resetAll();
+  res.json({ ok: true, profile: store.getProfile(), summary: store.summary() });
+}));
 
-public class Solution {
-    public static void main(String[] args) {
-        System.out.println("Solution template for ${q.title.replace(/"/g, '\\"')} (${compName})");
-    }
-}
-`,
-    filePath: `leetcode_companywise/${company}/${csvFile}`,
-    leetcodeUrl: q.url,
-    frequency: q.frequency,
-    acceptance: q.acceptance,
-    hints: [
-      `🎯 Company: ${compName}`,
-      `📊 Frequency: ${q.frequency} | Acceptance: ${q.acceptance}`,
-      `🔗 LeetCode URL: ${q.url}`
-    ]
-  }));
+/** Personalised "what next" queue: unfinished path chapters + due problems. */
+app.get('/api/next-up', asyncRoute((req, res) => {
+  const profile = store.getProfile();
+  const progress = store.getProgress();
+  const activePath = getPath(profile.pathId) || PATHS[0];
 
-  res.json(formatted);
-});
-
-// POST /api/run - Compile and execute Java code
-app.post('/api/run', (req, res) => {
-  const { code } = req.body;
-  if (!code || typeof code !== 'string') {
-    return res.status(400).json({ error: 'Java code string is required' });
-  }
-
-  const timestamp = Date.now();
-  const className = `Solution_${timestamp}`;
-  const filename = `${className}.java`;
-  const filePath = path.join(tempDir, filename);
-
-  // 1. Strip package declarations for flat temp compilation
-  let modifiedCode = code.replace(/^\s*package\s+[\w.]+;/gm, '// package stripped for sandbox execution');
-
-  // 2. Replace primary public class declaration with unique timestamp class name
-  if (/public\s+class\s+([A-Za-z0-9_]+)/.test(modifiedCode)) {
-    modifiedCode = modifiedCode.replace(/public\s+class\s+([A-Za-z0-9_]+)/, `public class ${className}`);
-  } else if (/class\s+([A-Za-z0-9_]+)/.test(modifiedCode)) {
-    modifiedCode = modifiedCode.replace(/class\s+([A-Za-z0-9_]+)/, `public class ${className}`);
-  } else {
-    modifiedCode = `public class ${className} {\n  public static void main(String[] args) {\n${code}\n  }\n}`;
-  }
-
-  fs.writeFile(filePath, modifiedCode, (err) => {
-    if (err) {
-      return res.status(500).json({ error: `File write error: ${err.message}` });
-    }
-
-    const compileCmd = `javac "${filePath}"`;
-    const runCmd = `java -cp "${tempDir}" ${className}`;
-    const startTime = Date.now();
-
-    exec(compileCmd, { timeout: 10000 }, (compileErr, compileStdout, compileStderr) => {
-      if (compileErr) {
-        cleanupTempFiles(tempDir, className);
-        return res.json({
-          status: 'Compilation Error',
-          error: compileStderr || compileErr.message,
-          elapsedMs: Date.now() - startTime
-        });
-      }
-
-      exec(runCmd, { timeout: 5000 }, (runErr, runStdout, runStderr) => {
-        const elapsedMs = Date.now() - startTime;
-        cleanupTempFiles(tempDir, className);
-
-        if (runErr) {
-          return res.json({
-            status: 'Runtime Error',
-            error: runStderr || runErr.message,
-            elapsedMs
-          });
-        }
-
-        res.json({
-          status: 'Success',
-          stdout: runStdout,
-          error: runStderr,
-          elapsedMs
-        });
-      });
+  const chapters = activePath.chapters
+    .map((id) => catalog.chapterSummaries().find((c) => c.id === id))
+    .filter(Boolean)
+    .map((chapter) => {
+      const lessons = chapter.lessons;
+      const done = lessons.filter((l) => (progress.lessons[l.id] || {}).status === 'completed').length;
+      return {
+        id: chapter.id, icon: chapter.icon, title: chapter.title,
+        summary: chapter.summary, minutes: chapter.minutes,
+        total: lessons.length, done,
+        percent: lessons.length ? Math.round((done / lessons.length) * 100) : 0,
+        nextLesson: lessons.find((l) => (progress.lessons[l.id] || {}).status !== 'completed') || null
+      };
     });
-  });
-});
 
-function cleanupTempFiles(dir, className) {
-  const files = [
-    path.join(dir, `${className}.java`),
-    path.join(dir, `${className}.class`)
-  ];
-  files.forEach(f => {
-    if (fs.existsSync(f)) {
-      try { fs.unlinkSync(f); } catch (e) {}
-    }
+  const currentChapter = chapters.find((c) => c.percent < 100) || chapters[0] || null;
+
+  const attempted = Object.entries(progress.problems)
+    .filter(([, p]) => p.status !== 'solved')
+    .sort((a, b) => new Date(b[1].lastAttemptAt || 0) - new Date(a[1].lastAttemptAt || 0))
+    .slice(0, 5)
+    .map(([id, p]) => ({ id, attempts: p.attempts, passed: p.passed, total: p.total }));
+
+  const recommended = currentChapter
+    ? catalog.questionsForChapter(currentChapter.id, 6)
+      .map((q) => ({ ...q, status: (progress.problems[q.id] || {}).status || 'not-started' }))
+      .filter((q) => q.status !== 'solved')
+      .slice(0, 4)
+    : [];
+
+  res.json({
+    path: { id: activePath.id, title: activePath.title, icon: activePath.icon },
+    chapters,
+    currentChapter,
+    resumeProblems: attempted,
+    recommended,
+    summary: store.summary()
   });
-}
+}));
+
+// ===========================================================================
+// Curriculum
+// ===========================================================================
+
+app.get('/api/paths', asyncRoute((req, res) => res.json(PATHS)));
+
+app.get('/api/chapters', asyncRoute((req, res) => {
+  const progress = store.getProgress();
+  res.json(catalog.chapterSummaries().map((chapter) => {
+    const done = chapter.lessons.filter((l) => (progress.lessons[l.id] || {}).status === 'completed').length;
+    return { ...chapter, done, percent: chapter.lessons.length ? Math.round((done / chapter.lessons.length) * 100) : 0 };
+  }));
+}));
+
+app.get('/api/chapters/:id', asyncRoute((req, res) => {
+  const chapter = catalog.getChapterDetail(req.params.id);
+  if (!chapter) return res.status(404).json({ error: 'Chapter not found' });
+
+  const progress = store.getProgress();
+  res.json({
+    ...chapter,
+    lessons: chapter.lessons.map(({ code, ...lesson }) => ({
+      ...lesson,
+      status: (progress.lessons[lesson.id] || {}).status || 'not-started'
+    })),
+    practice: catalog.questionsForChapter(chapter.id, 12).map((q) => ({
+      ...q, status: (progress.problems[q.id] || {}).status || 'not-started'
+    }))
+  });
+}));
+
+app.get('/api/lessons/:chapterId/:lessonName', asyncRoute((req, res) => {
+  const lessonId = `${req.params.chapterId}/${req.params.lessonName}`;
+  const lesson = catalog.getLesson(lessonId);
+  if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
+
+  const progress = store.getProgress();
+  const chapter = catalog.getChapterDetail(lesson.chapterId);
+  const siblings = chapter.lessons.map((l) => ({
+    id: l.id, title: l.title, level: l.level, levelName: l.levelName,
+    status: (progress.lessons[l.id] || {}).status || 'not-started'
+  }));
+  const index = siblings.findIndex((l) => l.id === lessonId);
+
+  store.markLesson(lessonId, (progress.lessons[lessonId] || {}).status === 'completed' ? 'completed' : 'in-progress');
+
+  res.json({
+    ...lesson,
+    chapter: { id: chapter.id, icon: chapter.icon, title: chapter.title, objectives: chapter.objectives, why: chapter.why },
+    siblings,
+    prev: index > 0 ? siblings[index - 1] : null,
+    next: index >= 0 && index < siblings.length - 1 ? siblings[index + 1] : null,
+    practice: catalog.questionsForChapter(lesson.chapterId, 6),
+    status: (progress.lessons[lessonId] || {}).status || 'in-progress'
+  });
+}));
+
+// ===========================================================================
+// Practice — companies & questions
+// ===========================================================================
+
+app.get('/api/companies', asyncRoute((req, res) => {
+  const search = String(req.query.search || '').toLowerCase().trim();
+  let companies = catalog.listCompanies();
+  if (search) companies = companies.filter((c) => c.name.toLowerCase().includes(search) || c.id.includes(search));
+  res.json({
+    total: catalog.listCompanies().length,
+    featured: catalog.featuredCompanies(),
+    companies: companies.slice(0, Number(req.query.limit) || 120)
+  });
+}));
+
+app.get('/api/companies/:slug/questions', asyncRoute((req, res) => {
+  const { slug } = req.params;
+  const period = String(req.query.period || 'all');
+  const questions = catalog.companyQuestions(slug, period);
+  if (!questions.length) return res.status(404).json({ error: 'No questions for this company/period' });
+
+  const progress = store.getProgress();
+  res.json({
+    company: { id: slug, name: catalog.formatCompanyName(slug) },
+    period,
+    questions: questions.map((q) => ({ ...q, status: (progress.problems[q.id] || {}).status || 'not-started' }))
+  });
+}));
+
+app.get('/api/questions', asyncRoute((req, res) => {
+  const progress = store.getProgress();
+  const topic = req.query.topic;
+  let questions = catalog.guidedQuestions();
+  if (topic) questions = questions.filter((q) => q.topics.includes(topic));
+  res.json(questions.map((q) => ({ ...q, status: (progress.problems[q.id] || {}).status || 'not-started' })));
+}));
+
+app.get('/api/questions/:id', asyncRoute((req, res) => {
+  const question = catalog.getQuestion(req.params.id, req.query.company);
+  if (!question) return res.status(404).json({ error: 'Question not found' });
+
+  const entry = store.getProgress().problems[question.id] || null;
+  res.json({
+    ...question,
+    solutionCode: undefined,          // revealed through a separate, deliberate call
+    hasSolution: !!question.solutionCode,
+    progress: entry ? {
+      status: entry.status, attempts: entry.attempts, passed: entry.passed,
+      total: entry.total, solvedAt: entry.solvedAt, draft: entry.lastCode || ''
+    } : null
+  });
+}));
+
+app.get('/api/questions/:id/solution', asyncRoute((req, res) => {
+  const question = catalog.getQuestion(req.params.id, req.query.company);
+  if (!question || !question.solutionCode) return res.status(404).json({ error: 'No reference solution for this question yet' });
+  res.json({
+    solutionCode: question.solutionCode,
+    approach: question.approach,
+    complexity: question.complexity
+  });
+}));
+
+app.get('/api/questions/:id/plan', asyncRoute((req, res) => {
+  const plan = tutor.prepPlan(req.params.id, req.query.company);
+  if (!plan) return res.status(404).json({ error: 'Question not found' });
+  res.json(plan);
+}));
+
+// ===========================================================================
+// Execution
+// ===========================================================================
+
+/** Run arbitrary Java (lesson files, scratch code) and stream back stdout. */
+app.post('/api/run', asyncRoute(async (req, res) => {
+  const { code, stdin, lessonId } = req.body || {};
+  if (!code || typeof code !== 'string') return res.status(400).json({ error: 'Java code is required' });
+
+  const result = await judge.runFreeform(code, stdin);
+  if (lessonId) store.recordLessonRun(lessonId);
+  res.json(result);
+}));
+
+/** Grade a submission against the question's test cases. */
+app.post('/api/submit', asyncRoute(async (req, res) => {
+  const { problemId, code, company, runSamplesOnly } = req.body || {};
+  if (!problemId || !code) return res.status(400).json({ error: 'problemId and code are required' });
+
+  const question = catalog.getQuestion(problemId, company);
+  if (!question) return res.status(404).json({ error: 'Question not found' });
+
+  if (!question.guided || !question.tests.length) {
+    const result = await judge.runFreeform(code);
+    store.saveDraft(question.id, code);
+    return res.json({ ...result, graded: false });
+  }
+
+  const bank = require('./data/problem-bank').getProblem(question.number);
+  const tests = runSamplesOnly ? bank.tests.slice(0, 3) : bank.tests;
+
+  const result = await judge.runTests(code, tests, bank.testHelpers);
+  const entry = store.recordAttempt(question.id, {
+    passed: result.passed, total: result.total, status: result.status,
+    code, elapsedMs: result.elapsedMs, topics: question.topics
+  });
+
+  res.json({
+    ...result,
+    graded: true,
+    sampleOnly: !!runSamplesOnly,
+    progress: { status: entry.status, attempts: entry.attempts, solvedAt: entry.solvedAt },
+    summary: store.summary()
+  });
+}));
+
+// ===========================================================================
+// AI Tutor
+// ===========================================================================
+
+app.get('/api/tutor/status', asyncRoute((req, res) => {
+  res.json({ ready: tutor.isConfigured(), model: tutor.MODEL });
+}));
+
+app.get('/api/tutor/thread', asyncRoute((req, res) => {
+  const key = tutor.contextKey({
+    problemId: req.query.problemId, lessonId: req.query.lessonId, chapterId: req.query.chapterId
+  });
+  res.json({ contextKey: key, messages: store.getChat(key) });
+}));
+
+app.delete('/api/tutor/thread', asyncRoute((req, res) => {
+  const key = tutor.contextKey({
+    problemId: req.query.problemId, lessonId: req.query.lessonId, chapterId: req.query.chapterId
+  });
+  store.clearChat(key);
+  res.json({ ok: true });
+}));
+
+/** Streaming chat (Server-Sent Events). */
+app.post('/api/tutor/ask', asyncRoute(async (req, res) => {
+  const { message = '', context = {}, mode = 'chat', stream = true } = req.body || {};
+
+  if (!tutor.isConfigured()) {
+    return res.status(503).json({ error: 'AI tutor is not configured. Add MERCURY_API_KEY to web/.env and restart.' });
+  }
+
+  if (!stream) {
+    const { reply } = await tutor.ask({ message, context, mode });
+    return res.json({ reply });
+  }
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no'
+  });
+
+  const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+
+  try {
+    const { reply } = await tutor.ask({ message, context, mode }, (chunk) => send('chunk', { text: chunk }));
+    send('done', { reply });
+  } catch (err) {
+    send('error', { error: err.message });
+  }
+  res.end();
+}));
+
+app.get('/api/tutor/memory', asyncRoute((req, res) => {
+  res.json({ memory: store.getMemory(), summary: store.summary() });
+}));
+
+app.post('/api/tutor/memory', asyncRoute((req, res) => {
+  const { text, kind = 'user' } = req.body || {};
+  if (!text) return res.status(400).json({ error: 'text is required' });
+  res.json(store.rememberFact(text, kind));
+}));
+
+app.delete('/api/tutor/memory/:index', asyncRoute((req, res) => {
+  res.json(store.forgetFact(Number(req.params.index)));
+}));
+
+// ===========================================================================
+// Fallback: single-page app
+// ===========================================================================
+
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Unknown endpoint' });
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 app.listen(PORT, () => {
-  console.log(`🚀 Java Backend & DSA Studio server running on http://localhost:${PORT}`);
+  const stats = catalog.stats();
+  console.log(`\n  🚀  Java DSA Studio  →  http://localhost:${PORT}\n`);
+  console.log(`      ${stats.chapters} chapters · ${stats.lessons} lessons`);
+  console.log(`      ${stats.guidedProblems} guided problems with test cases`);
+  console.log(`      ${stats.companies} companies · ${stats.companyQuestions} interview questions`);
+  console.log(`      AI tutor: ${tutor.isConfigured() ? `${tutor.MODEL} ready` : 'disabled (set MERCURY_API_KEY in web/.env)'}\n`);
 });

@@ -1,54 +1,161 @@
-# 🚀 Complete Java Data Structures & Algorithms (DSA) Master Curriculum
+# ☕ Java DSA Studio
 
-Welcome to the ultimate, production-quality, Java-based Data Structures and Algorithms (DSA) tutorial repository! This repository is organized into a **3-Tier Progressive Learning Framework**:
+A local learning studio for Java data structures, algorithms and interview prep:
+a structured curriculum you can **run**, interview questions that are actually **graded**
+against real test cases, an editor built for learning, and an **AI tutor** that can see
+your code, your failing test case and your history.
 
----
+```bash
+cd web
+npm install
+cp .env.example .env        # add your Mercury (Inception Labs) key for the AI tutor
+npm start                   # → http://localhost:3000
+```
 
-## 🚦 Progressive 3-Tier Learning Framework
-
-Each module directory in `src/` contains 3 distinct difficulty levels:
-1. 🟢 **Level 1 (Basic / Easy)**: Fundamentals, syntax, basic manipulations, step-by-step traces.
-2. 🟡 **Level 2 (Intermediate / Medium)**: Core LeetCode Medium problem patterns (3Sum, Sliding Window, Monotonic Stack, BST Validation, Topological Sort).
-3. 🔴 **Level 3 (Advanced / Hard / FAANG)**: Complex algorithms & LeetCode Hard problems (LRU Cache, Sliding Window Max, Median of Two Sorted Arrays, Word Search II, Sudoku Solver, Dual Heap Median Finder, Edit Distance, Dijkstra).
-
----
-
-## 🗺️ Master Curriculum Roadmap
-
-| # | Module | Level 1 (Basic) | Level 2 (Intermediate) | Level 3 (Advanced / FAANG) |
-|---|---|---|---|---|
-| **01** | [Foundations](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module01_foundations/README.md) | [`Level1_BasicBigO.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module01_foundations/Level1_BasicBigO.java) | [`Level2_IntermediateAmortized.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module01_foundations/Level2_IntermediateAmortized.java) | [`Level3_AdvancedRecursionMemory.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module01_foundations/Level3_AdvancedRecursionMemory.java) |
-| **02** | [Arrays & Strings](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module02_arrays_and_strings/README.md) | [`Level1_BasicArrayOps.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module02_arrays_and_strings/Level1_BasicArrayOps.java) | [`Level2_IntermediateTwoPointer.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module02_arrays_and_strings/Level2_IntermediateTwoPointer.java) | [`Level3_AdvancedSlidingWindow.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module02_arrays_and_strings/Level3_AdvancedSlidingWindow.java) |
-| **03** | [Linked Lists](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module03_linked_lists/README.md) | [`Level1_BasicLinkedList.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module03_linked_lists/Level1_BasicLinkedList.java) | [`Level2_IntermediateLinkedList.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module03_linked_lists/Level2_IntermediateLinkedList.java) | [`Level3_AdvancedLRUCache.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module03_linked_lists/Level3_AdvancedLRUCache.java) |
-| **04** | [Stacks & Queues](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module04_stacks_and_queues/README.md) | [`Level1_BasicStackQueue.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module04_stacks_and_queues/Level1_BasicStackQueue.java) | [`Level2_IntermediateMonotonicStack.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module04_stacks_and_queues/Level2_IntermediateMonotonicStack.java) | [`Level3_AdvancedHistogramRainWater.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module04_stacks_and_queues/Level3_AdvancedHistogramRainWater.java) |
-| **05** | [Hashing & Hash Tables](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module05_hashing/README.md) | [`Level1_BasicHashing.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module05_hashing/Level1_BasicHashing.java) | [`Level2_IntermediateHashing.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module05_hashing/Level2_IntermediateHashing.java) | [`Level3_AdvancedSubarraySumK.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module05_hashing/Level3_AdvancedSubarraySumK.java) |
-| **06** | [Trees & BST](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module06_trees_and_bst/README.md) | [`Level1_BasicTreeOps.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module06_trees_and_bst/Level1_BasicTreeOps.java) | [`Level2_IntermediateTreeOps.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module06_trees_and_bst/Level2_IntermediateTreeOps.java) | [`Level3_AdvancedTreeOps.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module06_trees_and_bst/Level3_AdvancedTreeOps.java) |
-| **07** | [Heaps & Priority Queues](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module07_heaps_and_priority_queues/README.md) | [`Level1_BasicHeap.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module07_heaps_and_priority_queues/Level1_BasicHeap.java) | [`Level2_IntermediateHeap.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module07_heaps_and_priority_queues/Level2_IntermediateHeap.java) | [`Level3_AdvancedMedianStream.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module07_heaps_and_priority_queues/Level3_AdvancedMedianStream.java) |
-| **08** | [Disjoint Set & Trie](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module08_disjoint_set_and_trie/README.md) | [`Level1_BasicTrieDSU.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module08_disjoint_set_and_trie/Level1_BasicTrieDSU.java) | [`Level2_IntermediateTrieDSU.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module08_disjoint_set_and_trie/Level2_IntermediateTrieDSU.java) | [`Level3_AdvancedWordSearchII.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module08_disjoint_set_and_trie/Level3_AdvancedWordSearchII.java) |
-| **09** | [Sorting & Searching](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module09_sorting_and_searching/README.md) | [`Level1_BasicSortSearch.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module09_sorting_and_searching/Level1_BasicSortSearch.java) | [`Level2_IntermediateSortSearch.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module09_sorting_and_searching/Level2_IntermediateSortSearch.java) | [`Level3_AdvancedBinarySearch.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module09_sorting_and_searching/Level3_AdvancedBinarySearch.java) |
-| **10** | [Recursion & Backtracking](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module10_recursion_and_backtracking/README.md) | [`Level1_BasicRecursion.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module10_recursion_and_backtracking/Level1_BasicRecursion.java) | [`Level2_IntermediateBacktracking.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module10_recursion_and_backtracking/Level2_IntermediateBacktracking.java) | [`Level3_AdvancedSudokuNQueens.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module10_recursion_and_backtracking/Level3_AdvancedSudokuNQueens.java) |
-| **11** | [Greedy Algorithms](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module11_greedy_algorithms/README.md) | [`Level1_BasicGreedy.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module11_greedy_algorithms/Level1_BasicGreedy.java) | [`Level2_IntermediateGreedy.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module11_greedy_algorithms/Level2_IntermediateGreedy.java) | [`Level3_AdvancedCandyHard.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module11_greedy_algorithms/Level3_AdvancedCandyHard.java) |
-| **12** | [Dynamic Programming](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module12_dynamic_programming/README.md) | [`Level1_BasicDP.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module12_dynamic_programming/Level1_BasicDP.java) | [`Level2_IntermediateDP.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module12_dynamic_programming/Level2_IntermediateDP.java) | [`Level3_AdvancedDPHard.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module12_dynamic_programming/Level3_AdvancedDPHard.java) |
-| **13** | [Graph Algorithms](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module13_graph_algorithms/README.md) | [`Level1_BasicGraph.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module13_graph_algorithms/Level1_BasicGraph.java) | [`Level2_IntermediateGraph.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module13_graph_algorithms/Level2_IntermediateGraph.java) | [`Level3_AdvancedGraphHard.java`](file:///Users/asishsharma/IdeaProjects/scannerxplaoit/src/module13_graph_algorithms/Level3_AdvancedGraphHard.java) |
+Requires **Node 18+** and a **JDK** on your `PATH` (`javac` / `java` are used to compile and run submissions).
 
 ---
 
-## 🛠️ How to Compile & Run
+## What is inside
 
-### Compiling All Modules
-From the root directory (`scannerxplaoit`):
+| | |
+|---|---|
+| **16 chapters / 178 runnable lessons** | The `src/` curriculum: every `.java` file is a lesson you can read, edit and execute in the browser |
+| **Guided problem bank** | Interview problems with a full statement, worked examples, constraints, three staged hints, an editorial and machine-checked test cases |
+| **654 companies / 17,641 questions** | The `leetcode_companywise/` lists, filterable by recency and difficulty |
+| **AI tutor (Mercury 2)** | Streams answers, remembers you between sessions, and reads the problem + your editor + your last run |
+| **Progress tracker** | Streak, activity heatmap, per-chapter completion, strong/weak topics, saved drafts |
+
+---
+
+## How the learning loop works
+
+1. **Onboard** — pick a goal, a starting level and a daily budget. That selects a learning path
+   (*Zero to Hero*, *Interview Sprint*, *Absolute Beginner*, *Backend Builder*).
+2. **Learn** — open a chapter, read a lesson and run it. Every lesson is real Java that prints real output.
+3. **Practise** — open a question. Before writing code you can hit **Learn first**: the studio
+   assembles the chapters, lessons and easier questions you should do first, from your own library.
+4. **Submit** — *Run samples* checks the visible cases, *Submit* runs every case and returns
+   a per-case verdict with expected vs. your output. Compile errors are reported at *your* line numbers.
+5. **Debrief** — after solving, read the editorial or ask the tutor what to take away and what to try next.
+
+---
+
+## The AI tutor
+
+Set `MERCURY_API_KEY` in `web/.env` (git-ignored; `web/.env.example` is the template). Without a key the
+app works fine and the tutor panel is simply disabled.
+
+The tutor has five modes, all available from the panel next to the editor:
+
+| Mode | What it does |
+|---|---|
+| **Explain** | Restates the problem in plain language without revealing the algorithm |
+| **Learn first** | Builds an ordered study plan from the curriculum + easier bank questions |
+| **Hint** | One smallest-next-step nudge, based on how far your code already got |
+| **Review my code** | Points at the first real bug in *your* code, with the fix and the complexity |
+| **Debrief** | After a solve: the pattern, the optimal complexity, and what to do next |
+
+It also keeps **long-term memory**: durable notes about your goals, misconceptions and mastered topics,
+plus automatically tracked strong/weak topics. Everything it remembers is visible — and deletable — on the
+**Progress** page.
+
+---
+
+## The editor
+
+Built for learning rather than for looking fancy:
+
+- smart auto-indentation (block-aware Enter, `{|}` expansion)
+- auto-closing brackets and quotes, type-over, paired backspace
+- `Tab` / `Shift-Tab` indent for the line or the whole selection
+- `⌘/Ctrl + /` comment toggle, `Alt + ↑/↓` move line, `⌘/Ctrl + D` duplicate line
+- `⌘/Ctrl + Shift + F` re-indent the file, `⌘/Ctrl + Enter` run, `⌘/Ctrl + S` save draft
+- live Java syntax colouring, line numbers, cursor position, adjustable font size
+- drafts autosave per problem, so you can leave and come back
+
+Global: `⌘/Ctrl + K` opens a command palette over every chapter, lesson, problem and company.
+
+---
+
+## Adding a problem to the guided bank
+
+Guided problems live in `web/data/bank/*.js`. Copy the shape from
+[`bank-00-reference.js`](web/data/bank/bank-00-reference.js) and run the quality gate:
+
+```bash
+cd web
+node tools/verify-bank.js                          # verify everything
+node tools/verify-bank.js --file bank-01-arrays-strings.js
+node tools/verify-bank.js 1 121 704                # verify selected ids
+```
+
+The verifier refuses a problem unless the required fields are present, **its own reference solution
+passes every one of its test cases**, and the starter code compiles. That is why the bank can be trusted.
+
+A test case is a Java expression evaluated against your `Solution` instance:
+
+```js
+{ name: 'Example 1', input: 'nums = [2,7,11,15], target = 9',
+  expr: 'Arrays.toString(sol.twoSum(new int[]{2,7,11,15}, 9))', expected: '[0, 1]' }
+```
+
+Optional per-test `setup` (statements to run first) and `unordered: true` (order-insensitive compare),
+plus a per-problem `testHelpers` string for builders like `buildTree(...)` / `listToString(...)`.
+
+---
+
+## Project layout
+
+```
+src/                        the Java curriculum — one folder per chapter
+leetcode_companywise/       company question lists (CSV)
+web/
+  server.js                 HTTP API + static hosting
+  data/curriculum.js        chapters, topics, learning paths
+  data/bank/*.js            curated problems (statement + tests + editorial)
+  lib/judge.js              compiles and grades Java submissions
+  lib/catalog.js            merges lessons + company lists into one catalog
+  lib/store.js              profile, progress, streaks, tutor memory (JSON on disk)
+  lib/tutor.js              Mercury 2 tutor: context, modes, memory
+  tools/verify-bank.js      quality gate for the problem bank
+  public/                   the single-page front end (vanilla ES modules)
+```
+
+Learner state is written to `web/data/store/state.json` (git-ignored). Delete it, or use
+**Reset progress** on the Progress page, to start over.
+
+---
+
+## Running the Java curriculum directly
+
+The lessons are ordinary Java files, so you can also run them without the studio:
+
 ```bash
 javac src/module*/*.java
-```
-
-### Running Tiers Directly
-```bash
-# Level 1 Basic
 java -cp src module02_arrays_and_strings.Level1_BasicArrayOps
-
-# Level 2 Intermediate
-java -cp src module02_arrays_and_strings.Level2_IntermediateTwoPointer
-
-# Level 3 Advanced / Hard
-java -cp src module02_arrays_and_strings.Level3_AdvancedSlidingWindow
 ```
+
+Each module folder follows the same 3-tier progression:
+
+1. 🟢 **Level 1 — Warm-up**: fundamentals, syntax, step-by-step traces
+2. 🟡 **Level 2 — Core patterns**: the medium-difficulty interview patterns
+3. 🔴 **Level 3 — Interview grade**: hard problems (LRU cache, sliding-window max, Dijkstra, edit distance, …)
+
+| # | Module | Focus |
+|---|---|---|
+| 01 | `module01_foundations` | Big-O, amortised analysis, recursion cost |
+| 02 | `module02_arrays_and_strings` | In-place ops, two pointers, sliding window |
+| 03 | `module03_linked_lists` | Reversal, fast/slow pointers, LRU cache |
+| 04 | `module04_stacks_and_queues` | LIFO/FIFO, monotonic stack, histogram & rain water |
+| 05 | `module05_hashing` | Hash map internals, frequency counting, prefix sums |
+| 06 | `module06_trees_and_bst` | Traversals, recursive tree reasoning, BST invariants |
+| 07 | `module07_heaps_and_priority_queues` | Heap mechanics, top-K, running median |
+| 08 | `module08_disjoint_set_and_trie` | Tries, union-find with path compression |
+| 09 | `module09_sorting_and_searching` | Sorting trade-offs, the binary search template |
+| 10 | `module10_recursion_and_backtracking` | choose / explore / un-choose, N-Queens, Sudoku |
+| 11 | `module11_greedy_algorithms` | Exchange arguments, interval scheduling |
+| 12 | `module12_dynamic_programming` | Memo → table, knapsack, edit distance |
+| 13 | `module13_graph_algorithms` | BFS/DFS, topological sort, Dijkstra |
+| — | `backend_engineering` | HTTP server, REST router, JWT, cache, mini SQL engine |
+| — | `quickstart`, `micro` | Java collections warm-up and 60-second drills |
