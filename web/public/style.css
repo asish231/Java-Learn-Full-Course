@@ -377,10 +377,10 @@ html[data-theme='light'] .tk-operator { color: #be185d; }
 .lesson-title { font-weight: 550; }
 .lesson-meta { font-size: 12px; color: var(--text-3); }
 
-.split { display: grid; grid-template-columns: 1fr 1fr; gap: 0; height: 100%; }
-.lesson-layout { display: grid; grid-template-columns: minmax(360px, 1fr) minmax(420px, 1.1fr); height: 100%; }
-.lesson-doc { overflow: auto; padding: 26px 28px 60px; border-right: 1px solid var(--line); }
-.lesson-run { display: flex; flex-direction: column; min-width: 0; }
+.split { display: flex; width: 100%; height: 100%; min-height: 0; min-width: 0; overflow: hidden; }
+.lesson-layout { display: flex; flex: 1 1 0%; width: 100%; height: 100%; min-height: 0; min-width: 0; overflow: hidden; position: relative; }
+.lesson-doc { flex: 0 0 42%; min-width: 260px; height: 100%; min-height: 0; overflow: auto; padding: 26px 28px 60px; }
+.lesson-run { display: flex; flex-direction: column; flex: 1 1 0%; min-width: 280px; min-height: 0; height: 100%; overflow: hidden; }
 
 .objectives { list-style: none; margin: 0; }
 .objectives li { padding-left: 22px; position: relative; margin-bottom: 6px; color: var(--text-2); }
@@ -393,7 +393,7 @@ html[data-theme='light'] .tk-operator { color: #be185d; }
 .company-card { display: flex; flex-direction: column; gap: 6px; }
 .company-card .co-name { font-weight: 600; font-size: 14.5px; }
 .company-logo {
-  width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
+  width: 34px; height: 34px; border-radius: 99px; display: grid; place-items: center;
   background: var(--bg-3); font-weight: 700; color: var(--text-2); font-size: 14px;
 }
 
@@ -417,11 +417,43 @@ html[data-theme='light'] .tk-operator { color: #be185d; }
    Workspace — problem + editor + tests + tutor
    ========================================================================== */
 
-.workspace { display: grid; grid-template-columns: minmax(320px, 0.85fr) minmax(420px, 1.15fr); height: 100%; min-height: 0; }
-.workspace.with-tutor { grid-template-columns: minmax(300px, 0.75fr) minmax(380px, 1fr) var(--panel); }
+.workspace { display: flex; flex: 1 1 0%; width: 100%; height: 100%; min-height: 0; min-width: 0; overflow: hidden; position: relative; }
 
-.pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-right: 1px solid var(--line); }
-.pane:last-child { border-right: none; }
+.pane { display: flex; flex-direction: column; flex: 0 0 42%; min-width: 260px; min-height: 0; height: 100%; overflow: hidden; }
+.pane.editor-pane { flex: 1 1 0%; min-width: 280px; }
+
+/* Resizer / Splitter handles */
+.splitter {
+  width: 8px;
+  flex: 0 0 8px;
+  background: var(--bg-1);
+  border-left: 1px solid var(--line-soft);
+  border-right: 1px solid var(--line-soft);
+  cursor: col-resize;
+  position: relative;
+  user-select: none;
+  z-index: 15;
+  transition: background .15s, border-color .15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.splitter::after {
+  content: '';
+  width: 2px;
+  height: 28px;
+  border-radius: 2px;
+  background: var(--line);
+  transition: background .15s, height .15s;
+}
+.splitter:hover, .splitter.dragging {
+  background: var(--bg-3);
+  border-color: var(--accent-soft);
+}
+.splitter:hover::after, .splitter.dragging::after {
+  background: var(--accent);
+  height: 42px;
+}
 
 .tabs { display: flex; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--bg-1); flex: 0 0 42px; align-items: center; }
 .tab {
@@ -507,10 +539,10 @@ html[data-theme='light'] .tk-operator { color: #be185d; }
 .ce-status { flex: 0 0 auto; padding: 5px 14px; border-top: 1px solid var(--line-soft); background: var(--bg-1); font-size: 11.5px; color: var(--text-3); font-family: var(--mono); }
 
 /* results panel */
-.results { flex: 0 0 auto; max-height: 46%; display: flex; flex-direction: column; border-top: 1px solid var(--line); background: var(--bg-1); }
-.results.collapsed { max-height: 38px; }
-.results-head { display: flex; align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer; flex: 0 0 auto; }
-.results-body { overflow: auto; padding: 0 14px 14px; }
+.results { flex: 0 0 auto; max-height: 46%; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); background: var(--bg-1); overflow: hidden; }
+.results.collapsed { height: 38px; max-height: 38px; flex: 0 0 38px; }
+.results-head { display: flex; align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer; flex: 0 0 38px; height: 38px; }
+.results-body { overflow: auto; padding: 0 14px 14px; flex: 1 1 0%; min-height: 0; }
 .verdict { font-weight: 650; font-size: 14px; }
 .verdict.pass { color: var(--green); }
 .verdict.fail { color: var(--red); }

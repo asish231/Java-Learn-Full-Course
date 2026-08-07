@@ -9,6 +9,8 @@ import { CodeEditor } from '../editor.js';
 import { TutorPanel } from '../tutor-panel.js';
 import { state } from '../state.js';
 
+import { makeResizable } from '../splitter.js';
+
 export async function render(root, route) {
   const lessonId = route.parts.slice(1).join('/');
 
@@ -54,7 +56,7 @@ class LessonView {
         this.completeBtn,
         h('button', { class: 'btn btn-ghost btn-sm', onClick: () => this.toggleTutor() }, '🤖 Tutor')
       ].filter(Boolean)
-    }), this.body); // keep the body attached — the layout renders into it
+    }), this.body);
 
     this.tutor = new TutorPanel({
       ready: state.tutorReady,
@@ -69,16 +71,26 @@ class LessonView {
     });
     this.tutor.el.style.display = 'none';
 
-    this.layout = h('div', { class: 'lesson-layout' }, this.buildDoc(), this.buildRunner(), this.tutor.el);
+    this.docPane = this.buildDoc();
+    this.runnerPane = this.buildRunner();
+    this.layout = h('div', { class: 'lesson-layout' }, this.docPane, this.runnerPane, this.tutor.el);
     this.body.replaceChildren(this.layout);
+
+    this.splitterControl = makeResizable({
+      container: this.layout,
+      leftPane: this.docPane,
+      rightPane: this.runnerPane,
+      tutorPane: this.tutor.el,
+      key: 'studio.split.lesson'
+    });
   }
 
   toggleTutor() {
     this.tutorOpen = !this.tutorOpen;
     this.tutor.el.style.display = this.tutorOpen ? '' : 'none';
-    this.layout.style.gridTemplateColumns = this.tutorOpen
-      ? 'minmax(300px, 0.9fr) minmax(360px, 1fr) 340px'
-      : '';
+    if (this.splitterControl) {
+      this.splitterControl.update();
+    }
   }
 
   buildDoc() {

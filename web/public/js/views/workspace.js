@@ -11,6 +11,8 @@ import { CodeEditor } from '../editor.js';
 import { TutorPanel } from '../tutor-panel.js';
 import { state, refreshSummary } from '../state.js';
 
+import { makeResizable } from '../splitter.js';
+
 export async function render(root, route) {
   const questionId = route.parts[1];
   const company = route.query.company || '';
@@ -40,6 +42,7 @@ class Workspace {
     this.tab = 'description';
     this.solutionRevealed = false;
     this.solution = null;
+    this.tutorOpen = false;
   }
 
   mount() {
@@ -59,7 +62,7 @@ class Workspace {
 
     // ---- panes -----------------------------------------------------------
     this.problemPane = h('section', { class: 'pane' });
-    this.editorPane = h('section', { class: 'pane' });
+    this.editorPane = h('section', { class: 'pane editor-pane' });
 
     this.tutor = new TutorPanel({
       ready: state.tutorReady,
@@ -71,17 +74,29 @@ class Workspace {
         lastRun: this.lastRun
       })
     });
+    this.tutor.el.style.display = 'none';
 
-    this.grid = h('div', { class: 'workspace with-tutor' }, this.problemPane, this.editorPane, this.tutor.el);
+    this.grid = h('div', { class: 'workspace' }, this.problemPane, this.editorPane, this.tutor.el);
     this.body.replaceChildren(this.grid);
+
+    this.splitterControl = makeResizable({
+      container: this.grid,
+      leftPane: this.problemPane,
+      rightPane: this.editorPane,
+      tutorPane: this.tutor.el,
+      key: 'studio.split.workspace'
+    });
 
     this.renderProblemPane();
     this.renderEditorPane();
   }
 
   toggleTutor() {
-    const on = this.grid.classList.toggle('with-tutor');
-    this.tutor.el.style.display = on ? '' : 'none';
+    this.tutorOpen = !this.tutorOpen;
+    this.tutor.el.style.display = this.tutorOpen ? '' : 'none';
+    if (this.splitterControl) {
+      this.splitterControl.update();
+    }
   }
 
   // =========================================================================
