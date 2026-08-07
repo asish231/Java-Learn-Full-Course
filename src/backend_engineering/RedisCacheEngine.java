@@ -58,7 +58,7 @@ public class RedisCacheEngine {
     }
 
     public static void main(String[] args) {
-        System.out.println("=== 🚀 05. Redis In-Memory Cache Engine & Cache-Aside ===");
+        System.out.println("=== 05. Redis In-Memory Cache Engine & Cache-Aside ===");
 
         RedisCache cache = new RedisCache(2); // Capacity = 2 items
 

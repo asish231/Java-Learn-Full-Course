@@ -87,30 +87,79 @@ export function markdown(text) {
       return;
     }
 
-    html += block.split(/\n{2,}/).map((paragraph) => {
-      const lines = paragraph.split('\n').filter((l) => l.trim().length);
-      if (!lines.length) return '';
+    const subBlocks = block.split(/\n{2,}/);
+    subBlocks.forEach((paragraph) => {
+      const lines = paragraph.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+      if (!lines.length) return;
+
+      // Check for markdown table
+      const hasTableLines = lines.some((l) => /^\s*\|.*\|\s*$/.test(l));
+      const hasSepLine = lines.some((l) => /^\s*\|(?:\s*:?-+:?\s*\|)+\s*$/.test(l));
+      if (hasTableLines && hasSepLine) {
+        const tableHtml = renderTable(lines);
+        if (tableHtml) {
+          html += tableHtml;
+          return;
+        }
+      }
 
       if (lines.every((l) => /^\s*[-*]\s+/.test(l))) {
-        return `<ul>${lines.map((l) => `<li>${inline(l.replace(/^\s*[-*]\s+/, ''))}</li>`).join('')}</ul>`;
+        html += `<ul>${lines.map((l) => `<li>${inline(l.replace(/^\s*[-*]\s+/, ''))}</li>`).join('')}</ul>`;
+        return;
       }
       if (lines.every((l) => /^\s*\d+[.)]\s+/.test(l))) {
-        return `<ol>${lines.map((l) => `<li>${inline(l.replace(/^\s*\d+[.)]\s+/, ''))}</li>`).join('')}</ol>`;
+        html += `<ol>${lines.map((l) => `<li>${inline(l.replace(/^\s*\d+[.)]\s+/, ''))}</li>`).join('')}</ol>`;
+        return;
       }
       const heading = lines[0].match(/^(#{1,4})\s+(.*)$/);
       if (heading && lines.length === 1) {
         const level = Math.min(heading[1].length + 2, 6);
-        return `<h${level}>${inline(heading[2])}</h${level}>`;
+        html += `<h${level}>${inline(heading[2])}</h${level}>`;
+        return;
       }
-      return `<p>${lines.map(inline).join('<br>')}</p>`;
-    }).join('');
+      html += `<p>${lines.map(inline).join('<br>')}</p>`;
+    });
   });
 
   return html;
 }
 
+function renderTable(lines) {
+  const tableLines = lines.filter((l) => /^\s*\|.*\|\s*$/.test(l));
+  if (tableLines.length < 2) return null;
+
+  const isSeparator = (l) => /^\s*\|(?:\s*:?-+:?\s*\|)+\s*$/.test(l);
+  const rows = [];
+  let headerRow = null;
+
+  for (const line of tableLines) {
+    if (isSeparator(line)) continue;
+    const cells = line
+      .replace(/^\||\|$/g, '')
+      .split('|')
+      .map((c) => c.trim());
+
+    if (!headerRow) {
+      headerRow = cells;
+    } else {
+      rows.push(cells);
+    }
+  }
+
+  if (!headerRow || !headerRow.length) return null;
+
+  const thead = `<thead><tr>${headerRow.map((c) => `<th>${inline(c)}</th>`).join('')}</tr></thead>`;
+  const tbody = `<tbody>${rows.map((row) => `<tr>${row.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+
+  return `<div class="table-wrap"><table class="md-table">${thead}${tbody}</table></div>`;
+}
+
 function inline(text) {
-  return esc(text)
+  if (!text) return '';
+  const withBreakPlaceholders = String(text).replace(/<br\s*\/?>/gi, '___BR_TAG___');
+  const safe = esc(withBreakPlaceholders);
+  return safe
+    .replace(/___BR_TAG___/g, '<br>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1<em>$2</em>')

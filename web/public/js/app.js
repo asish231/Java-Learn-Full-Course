@@ -116,7 +116,7 @@ const GOALS = [
 const LEVELS = [
   { id: 'beginner', icon: '🌱', title: 'New to Java', desc: 'Start with collections and syntax drills.', path: 'absolute-beginner' },
   { id: 'some-java', icon: '🧩', title: 'I know Java, not DSA', desc: 'Skip the syntax, go straight to structures and patterns.' },
-  { id: 'confident', icon: '🚀', title: 'Comfortable with both', desc: 'Jump to medium/hard interview questions.' }
+  { id: 'confident', icon: '⚡', title: 'Comfortable with both', desc: 'Jump to medium/hard interview questions.' }
 ];
 
 const MINUTES = [

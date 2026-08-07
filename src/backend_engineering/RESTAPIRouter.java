@@ -36,7 +36,7 @@ public class RESTAPIRouter {
 
         public String dispatch(String method, String path, Map<String, String> headers, String body) {
             System.out.println("\n------------------------------------------------");
-            System.out.println("🚀 [Request Pipeline] Executing " + method + " " + path);
+            System.out.println("[Request Pipeline] Executing " + method + " " + path);
 
             // 1. Run Middleware Pipeline
             for (int i = 0; i < middlewares.size(); i++) {

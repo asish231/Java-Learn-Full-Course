@@ -390,7 +390,7 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
   const stats = catalog.stats();
-  console.log(`\n  🚀  Java DSA Studio  →  http://localhost:${PORT}\n`);
+  console.log(`\n    Java DSA Studio  →  http://localhost:${PORT}\n`);
   console.log(`      ${stats.chapters} chapters · ${stats.lessons} lessons`);
   console.log(`      ${stats.guidedProblems} guided problems with test cases`);
   console.log(`      ${stats.companies} companies · ${stats.companyQuestions} interview questions`);

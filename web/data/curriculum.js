@@ -354,7 +354,7 @@ const PATHS = [
   {
     id: 'zero-to-hero',
     title: 'Zero to Hero',
-    icon: '🚀',
+    icon: '🎓',
     tagline: 'The complete journey, in order',
     description: 'Start from Java collections and finish on graphs and dynamic programming. Nothing skipped, nothing out of order.',
     weeks: 12,
