@@ -149,6 +149,32 @@ function getLesson(lessonId) {
   return null;
 }
 
+/**
+ * Topic slugs behind whatever the learner is looking at right now — used by the
+ * SRS and by behaviour events so a signal lands on the right graph nodes.
+ */
+function topicsForContext(context = {}) {
+  const topics = new Set();
+
+  if (context.problemId) {
+    const question = getQuestion(context.problemId, context.companySlug);
+    for (const topic of (question && question.topics) || []) topics.add(topic);
+  }
+
+  let chapterId = context.chapterId;
+  if (!chapterId && context.lessonId) {
+    const lesson = getLesson(context.lessonId);
+    if (lesson) chapterId = lesson.chapterId;
+  }
+  if (chapterId) {
+    const chapter = CHAPTERS.find((c) => c.id === chapterId);
+    for (const topic of (chapter && chapter.topics) || []) topics.add(topic);
+  }
+
+  for (const topic of Array.isArray(context.topics) ? context.topics : []) topics.add(topic);
+  return [...topics].filter((t) => typeof t === 'string' && t.length > 0);
+}
+
 // ---------------------------------------------------------------------------
 // Company question tracks (leetcode_companywise/**)
 // ---------------------------------------------------------------------------
@@ -310,13 +336,17 @@ function decorateQuestion(question, companySlug) {
     complexity: curated.complexity,
     starterCode: curated.starterCode,
     solutionCode: curated.solutionCode,
-    tests: (curated.tests || []).map((t, i) => ({
+    tests: (curated.tests || []).map((t, i) => i < 3 ? {
       index: i,
       name: t.name || `Case ${i + 1}`,
       input: t.input || '',
       expected: String(t.expected),
-      locked: i >= 3 // first three cases are visible samples, the rest are hidden
-    })),
+      locked: false
+    } : {
+      index: i,
+      name: `Private case ${i - 2}`,
+      locked: true
+    }),
     prerequisites: prerequisitesFor(curated.topics || [])
   };
 }
@@ -420,7 +450,7 @@ function stats() {
 }
 
 module.exports = {
-  buildChapters, chapterSummaries, getChapterDetail, getLesson,
+  buildChapters, chapterSummaries, getChapterDetail, getLesson, topicsForContext,
   listCompanies, featuredCompanies, companyQuestions, guidedQuestions,
   getQuestion, questionsForTopic, questionsForChapter, prerequisitesFor,
   formatCompanyName, PERIODS, stats

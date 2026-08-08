@@ -7,12 +7,14 @@
  */
 import { h, markdown, toast } from './util.js';
 import { api } from './api.js';
+import { AlgorithmVisualizer } from './algorithm-visualizer.js';
 
 const QUICK_ACTIONS = [
   { mode: 'explain', label: 'Explain', title: 'Restate the problem in plain language' },
   { mode: 'prep', label: 'What to learn first', title: 'Build a study plan before solving' },
   { mode: 'hint', label: 'Hint', title: 'The smallest next nudge' },
   { mode: 'review', label: 'Review my code', title: 'Feedback on what is in the editor' },
+  { mode: 'visualize', label: 'Visualize', title: 'Play a step-by-step algorithm trace' },
   { mode: 'debrief', label: 'Debrief', title: 'Takeaways after solving' }
 ];
 
@@ -23,10 +25,12 @@ export class TutorPanel {
    * @param {boolean} options.ready            whether the API key is configured
    * @param {string[]} options.actions         quick action modes to show
    */
-  constructor({ getContext, ready = true, actions = ['explain', 'hint', 'review'], subtitle = '' } = {}) {
+  constructor({ getContext, ready = true, actions = ['explain', 'hint', 'review'], subtitle = '', onVisualizationStep } = {}) {
     this.getContext = getContext || (() => ({}));
     this.ready = ready;
     this.busy = false;
+    this.onVisualizationStep = onVisualizationStep;
+    this.visualizers = [];
 
     this.dot = h('span', { class: `ai-dot${ready ? '' : ' off'}` });
     this.messagesEl = h('div', { class: 'tutor-msgs' });
@@ -87,7 +91,7 @@ export class TutorPanel {
       });
       this.messagesEl.replaceChildren();
       if (!messages.length) this.renderWelcome();
-      else messages.forEach((m) => this.appendMessage(m.role === 'user' ? 'user' : 'ai', m.content, m.mode));
+      else messages.forEach((m) => this.appendMessage(m.role === 'user' ? 'user' : 'ai', m.content, m.mode, m.visualization));
       this.scrollDown();
     } catch (_) {
       this.renderWelcome();
@@ -106,11 +110,19 @@ export class TutorPanel {
     if (ctx.problemId) this.appendMessage('ai', 'I also remember what you have solved so far, so ask me what to practise next.');
   }
 
-  appendMessage(role, content, mode) {
+  appendMessage(role, content, mode, visualization = null) {
     const node = h('div', { class: `msg ${role}` });
     if (mode && mode !== 'chat' && role === 'ai') node.append(h('div', { class: 'msg-mode' }, mode));
     const body = h('div', { class: 'prose', html: markdown(content) });
     node.append(body);
+    if (role === 'ai' && visualization) {
+      const visualizer = new AlgorithmVisualizer({
+        visualization,
+        onStep: (step, index) => this.onVisualizationStep && this.onVisualizationStep(step, index, visualization)
+      });
+      this.visualizers.push(visualizer);
+      node.append(visualizer.el);
+    }
     this.messagesEl.append(node);
     return { node, body };
   }
@@ -138,12 +150,20 @@ export class TutorPanel {
 
     try {
       let streamed = '';
-      await api.askTutor({ message, context: this.contextForRequest(), mode }, (_chunk, full) => {
+      const result = await api.askTutor({ message, context: this.contextForRequest(), mode }, (_chunk, full) => {
         streamed = full;
-        placeholder.body.innerHTML = markdown(full);
+        placeholder.body.innerHTML = markdown(full.replace(/```dsa-visualization[\s\S]*$/i, '').trim() || '_building visualization…_');
         this.scrollDown();
       });
-      if (!streamed) placeholder.body.innerHTML = markdown('_(no answer)_');
+      placeholder.body.innerHTML = markdown(result.reply || '_(no answer)_');
+      if (result.visualization) {
+        const visualizer = new AlgorithmVisualizer({
+          visualization: result.visualization,
+          onStep: (step, index) => this.onVisualizationStep && this.onVisualizationStep(step, index, result.visualization)
+        });
+        this.visualizers.push(visualizer);
+        placeholder.node.append(visualizer.el);
+      }
     } catch (err) {
       placeholder.body.innerHTML = markdown(`⚠️ ${err.message}`);
       toast(err.message, 'error');
@@ -160,6 +180,8 @@ export class TutorPanel {
     await api.clearTutorThread({
       problemId: ctx.problemId, lessonId: ctx.lessonId, chapterId: ctx.chapterId
     });
+    this.visualizers.forEach((visualizer) => visualizer.destroy());
+    this.visualizers = [];
     this.messagesEl.replaceChildren();
     this.renderWelcome();
     toast('Conversation cleared — long-term memory kept.', 'info');

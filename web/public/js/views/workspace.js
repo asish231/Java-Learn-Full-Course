@@ -9,13 +9,15 @@ import { pageHeader, fullBody, loading, errorBox } from '../shell.js';
 import { api } from '../api.js';
 import { CodeEditor } from '../editor.js';
 import { TutorPanel } from '../tutor-panel.js';
-import { state, refreshSummary } from '../state.js';
+import { state, refreshSummary, navigate } from '../state.js';
+import { track, setTrackContext, startFocus, endSession } from '../track.js';
 
 import { makeResizable } from '../splitter.js';
 
 export async function render(root, route) {
   const questionId = route.parts[1];
   const company = route.query.company || '';
+  const examMode = route.query.exam === '1' || !!route.query.mock;
 
   root.append(pageHeader({ title: 'Loading…', back: company ? `#/practice/${company}` : '#/practice' }));
   const body = fullBody(loading('Fetching the problem…'));
@@ -29,15 +31,17 @@ export async function render(root, route) {
     return;
   }
 
-  new Workspace(root, body, question, company).mount();
+  new Workspace(root, body, question, company, examMode, route.query.mock).mount();
 }
 
 class Workspace {
-  constructor(root, body, question, company) {
+  constructor(root, body, question, company, examMode = false, mockId = '') {
     this.root = root;
     this.body = body;
     this.question = question;
     this.company = company;
+    this.examMode = examMode;
+    this.mockId = mockId || '';
     this.lastRun = null;
     this.tab = 'description';
     this.solutionRevealed = false;
@@ -47,17 +51,32 @@ class Workspace {
 
   mount() {
     const q = this.question;
+    setTrackContext({ problemId: q.id, topics: q.topics || [], mockId: this.mockId || undefined });
+    track('open_problem', { problemId: q.id, topics: q.topics || [] });
+    startFocus();
 
     // ---- header ----------------------------------------------------------
+    const actions = [
+      h('span', { class: difficultyClass(q.difficulty) }, q.difficulty),
+      q.leetcodeUrl ? h('a', { class: 'btn btn-ghost btn-sm', href: q.leetcodeUrl, target: '_blank', rel: 'noopener' }, 'LeetCode ↗') : null
+    ];
+    if (!this.examMode) {
+      actions.push(h('button', { class: 'btn btn-ghost btn-sm', onClick: () => this.toggleTutor() }, '🤖 Tutor'));
+    } else {
+      actions.push(h('span', { class: 'dim' }, 'Exam mode'));
+      if (this.mockId) {
+        actions.push(h('button', {
+          class: 'btn btn-sm',
+          onClick: () => { endSession({ status: 'mock_pause', problemId: q.id }); location.hash = `#/mock/${this.mockId}`; }
+        }, 'Back to mock'));
+      }
+    }
+
     this.root.replaceChildren(pageHeader({
       title: `#${q.number} · ${q.title}`,
       crumb: q.companyName ? `asked at ${q.companyName}` : (q.guided ? 'guided problem' : 'LeetCode list'),
-      back: this.company ? `#/practice/${this.company}` : '#/practice',
-      actions: [
-        h('span', { class: difficultyClass(q.difficulty) }, q.difficulty),
-        q.leetcodeUrl ? h('a', { class: 'btn btn-ghost btn-sm', href: q.leetcodeUrl, target: '_blank', rel: 'noopener' }, 'LeetCode ↗') : null,
-        h('button', { class: 'btn btn-ghost btn-sm', onClick: () => this.toggleTutor() }, '🤖 Tutor')
-      ].filter(Boolean)
+      back: this.mockId ? `#/mock/${this.mockId}` : (this.company ? `#/practice/${this.company}` : '#/practice'),
+      actions: actions.filter(Boolean)
     }), this.body);
 
     // ---- panes -----------------------------------------------------------
@@ -66,7 +85,10 @@ class Workspace {
 
     this.tutor = new TutorPanel({
       ready: state.tutorReady,
-      actions: ['explain', 'prep', 'hint', 'review', 'debrief'],
+      actions: ['explain', 'prep', 'hint', 'review', 'visualize', 'debrief'],
+      onVisualizationStep: (step) => {
+        if (this.editor) this.editor.highlightExecutionLine(step.line);
+      },
       getContext: () => ({
         problemId: this.question.id,
         companySlug: this.company || undefined,
@@ -372,13 +394,26 @@ class Workspace {
     this.runBtn && (this.runBtn.disabled = true);
     this.submitBtn && (this.submitBtn.disabled = true);
     this.resultsEl.classList.remove('collapsed');
+    setTimeout(() => this.editor.scrollToCursor(), 50);
     this.setVerdict('Compiling…', 'pending');
     this.resultsBody.replaceChildren(h('div', { class: 'empty' }, h('span', { class: 'spinner' }), ' Running Java…'));
 
     try {
-      const result = q.guided
-        ? await api.submit(q.id, this.editor.value, { company: this.company, runSamplesOnly: samplesOnly })
-        : await api.run(this.editor.value);
+      // Inside a timed mock a real submit is the exam answer: it goes through
+      // the mock route so the clock is enforced and the session is scored.
+      const inMock = !!this.mockId && q.guided && !samplesOnly;
+      let result;
+      let mockAfter = null;
+
+      if (inMock) {
+        const out = await api.answerMock(this.mockId, { problemId: q.id, code: this.editor.value });
+        result = { ...out.result, graded: true };
+        mockAfter = out.mock;
+      } else {
+        result = q.guided
+          ? await api.submit(q.id, this.editor.value, { company: this.company, runSamplesOnly: samplesOnly })
+          : await api.run(this.editor.value);
+      }
 
       this.lastRun = result;
       this.timing.textContent = result.elapsedMs ? `${result.elapsedMs} ms` : '';
@@ -387,7 +422,23 @@ class Workspace {
       else this.renderFreeform(result);
 
       if (result.status === 'Accepted' && !samplesOnly) await this.onSolved();
+
+      if (mockAfter) {
+        this.resultsBody.append(h('div', { class: 'row mt-s' },
+          h('button', {
+            class: 'btn btn-sm btn-primary',
+            onClick: () => navigate(`#/mock/${this.mockId}`)
+          }, mockAfter.status === 'finished' ? `Mock scored · ${mockAfter.score}%` : 'Back to the mock')));
+        if (mockAfter.status === 'finished') toast(`Mock finished · ${mockAfter.score}%`, 'success', 4000);
+      }
     } catch (err) {
+      if (err.code === 'EXPIRED') {
+        this.setVerdict('Time up', 'fail');
+        this.resultsBody.replaceChildren(h('div', { class: 'console-out error' }, err.message));
+        toast(err.message, 'info', 4000);
+        navigate(`#/mock/${this.mockId}`);
+        return;
+      }
       this.setVerdict('Error', 'fail');
       this.resultsBody.replaceChildren(h('div', { class: 'console-out error' }, err.message));
     } finally {
@@ -461,6 +512,6 @@ class Workspace {
     this.resultsBody.append(h('div', { class: 'row mt-s wrap' },
       h('button', { class: 'btn btn-sm', onClick: () => { this.tab = 'editorial'; this.renderProblemPane(); } }, 'Read the editorial'),
       h('button', { class: 'btn btn-sm', onClick: () => this.tutor.send('', 'debrief') }, '🤖 Debrief me'),
-      h('button', { class: 'btn btn-sm', onClick: () => { location.hash = '#/practice'; } }, 'Next question')));
+      h('button', { class: 'btn btn-sm', onClick: () => navigate('#/practice') }, 'Next question')));
   }
 }

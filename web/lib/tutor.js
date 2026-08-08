@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const store = require('./store');
 const catalog = require('./catalog');
+const { parseTutorVisualization } = require('./tutor-visualization');
 const { topicLabel, getChapter } = require('../data/curriculum');
 
 // ---------------------------------------------------------------------------
@@ -40,6 +41,9 @@ const API_PATH = '/v1/chat/completions';
 const MODEL = process.env.MERCURY_MODEL || 'mercury-2';
 
 function apiKey() {
+  // MERCURY_DISABLED=1 forces the offline path (used by the fixture tests and
+  // to verify that scores/goals/mocks still work without the tutor).
+  if (process.env.MERCURY_DISABLED === '1') return '';
   return process.env.MERCURY_API_KEY || '';
 }
 
@@ -130,7 +134,14 @@ How you teach:
 - When a test case failed, reason about that specific input.
 - If the learner is missing a prerequisite, say so plainly and name the chapter to read first.
 - Use Markdown: **bold** for key terms, \`code\` inline, fenced \`\`\`java blocks for code.
-- Never invent LeetCode problems: only reference questions that appear in the provided context.`;
+- Never invent LeetCode problems: only reference questions that appear in the provided context.
+
+Interactive visual explanations:
+- For arrays/two pointers, linked lists, trees/graphs, stacks/queues, or DP/recursion, append one fenced \`\`\`dsa-visualization JSON block when a step trace would make the explanation clearer.
+- The JSON contract is {"version":1,"category":"arrays|linked-list|tree-graph|stack-queue|dp-recursion","title":"...","steps":[{"description":"...","line":1,"state":{...}}]}.
+- Use only data from the current problem/example/code. Source \`line\` is 1-based and must point to the learner code shown in context; omit it when no matching source line exists.
+- State shapes: arrays={values,pointers:[{label,index,status}],active}; linked-list/tree-graph={nodes:[{id,value,label,status}],edges:[{from,to,label,status}],active,visited}; stack-queue={items,structure,action,activeIndex}; dp-recursion={matrix,activeCell,nodes,edges,active}.
+- Never put HTML, JavaScript, Mermaid directives, or executable code in the JSON. Keep traces under 20 focused steps.`;
 
 const MODE_INSTRUCTIONS = {
   chat: '',
@@ -138,7 +149,10 @@ const MODE_INSTRUCTIONS = {
   hint: 'Give exactly ONE next hint, the smallest useful one, based on how far the learner already got in their code. Do not give the full algorithm and do not write the solution.',
   review: 'Review the learner\'s current code. State (1) what is correct, (2) the first real bug or inefficiency with the exact line, (3) the fix as a short snippet, (4) the resulting time/space complexity. If tests failed, explain the failing case concretely.',
   prep: 'Build a short, ordered study plan that gets the learner ready for this problem: which chapter/lesson to read, which easier questions from the provided list to solve first, and what to be able to do before trying the target problem. Use a numbered list, max 6 steps, one line each.',
-  debrief: 'The learner just solved the problem. In under 120 words: name the pattern, state the optimal complexity, mention one alternative approach and one closely related question they should try next (only from the provided list).'
+  debrief: 'The learner just solved the problem. In under 120 words: name the pattern, state the optimal complexity, mention one alternative approach and one closely related question they should try next (only from the provided list).',
+  visualize: 'Explain the algorithm as a concrete step-by-step trace for one small relevant example. You MUST append a valid dsa-visualization JSON block using the best matching category and synchronize steps to exact Java lines when learner code is available.',
+  career: 'Career counselling mode. Ground every claim in the real snapshot you were given — never invent readiness numbers, offers or timelines. Name concrete companies from the shortlist, say what is missing for each, and end with 2-4 dated actions for the next fortnight.',
+  notes: 'Write the learner\'s session note: what was practised, what actually went wrong or clicked, and the single next action. Markdown, max 180 words, no invented statistics.'
 };
 
 function memoryBlock() {
@@ -248,11 +262,16 @@ function contextBlock(context = {}) {
   return lines.join('\n');
 }
 
-function buildMessages({ message, context = {}, mode = 'chat', history = [] }) {
+function buildMessages({ message, context = {}, mode = 'chat', history = [], grounding = '' }) {
   // One consolidated system message: several models weight only the first one.
   const system = [PERSONA, '', memoryBlock()];
   const modeInstruction = MODE_INSTRUCTIONS[mode] || '';
   if (modeInstruction) system.push('', `[MODE: ${mode}] ${modeInstruction}`);
+  // Grounding is refreshed on every turn and never stored in the thread, so a
+  // long conversation cannot drift onto stale numbers.
+  if (grounding) {
+    system.push('', '[REAL LEARNER SNAPSHOT — the only source of numbers]', String(grounding).slice(0, 4000));
+  }
 
   const messages = [{ role: 'system', content: system.join('\n') }];
 
@@ -279,6 +298,9 @@ function contextKey(context = {}) {
   if (context.problemId) return `problem:${context.problemId}`;
   if (context.lessonId) return `lesson:${context.lessonId}`;
   if (context.chapterId) return `chapter:${context.chapterId}`;
+  // Career counselling and other side channels keep their own thread so they
+  // never leak grounding blobs into the general chat history.
+  if (context.kind) return `mode:${context.kind}`;
   return 'global';
 }
 
@@ -291,33 +313,61 @@ const DEFAULT_PROMPTS = {
   hint: 'Give me the next hint based on what I have written so far.',
   review: 'Review my current code.',
   prep: 'What should I learn before solving this? Build me a plan.',
-  debrief: 'I solved it — what should I take away, and what should I do next?'
+  debrief: 'I solved it — what should I take away, and what should I do next?',
+  visualize: 'Visualize this algorithm step by step using a small example.'
 };
 
 /**
  * Ask the tutor. When `onChunk` is supplied the answer is streamed.
  */
-async function ask({ message, context = {}, mode = 'chat' }, onChunk) {
+async function ask({ message, context = {}, mode = 'chat', grounding = '' }, onChunk) {
   const key = contextKey(context);
   const history = store.getChat(key);
   const prompt = (message && message.trim()) || DEFAULT_PROMPTS[mode] || 'Help me with this.';
 
-  const reply = await request({
+  const rawReply = await request({
     model: MODEL,
-    messages: buildMessages({ message: prompt, context, mode, history }),
+    messages: buildMessages({ message: prompt, context, mode, history, grounding }),
     max_tokens: 1400,
     temperature: mode === 'review' ? 0.3 : 0.6,
     stream: !!onChunk
   }, { onChunk });
 
+  const lineCount = context.code ? String(context.code).split('\n').length : 0;
+  const parsed = parseTutorVisualization(rawReply, { lineCount });
+  const reply = parsed.reply || 'I could not produce a readable explanation this time.';
   store.appendChat(key, { role: 'user', content: prompt, mode });
-  store.appendChat(key, { role: 'assistant', content: reply, mode });
+  store.appendChat(key, { role: 'assistant', content: reply, mode, visualization: parsed.visualization });
 
   // Every few turns, distil durable facts about the learner (fire and forget).
   const thread = store.getChat(key);
   if (thread.length % 8 === 0) distilMemory(thread).catch(() => {});
 
-  return { reply, contextKey: key };
+  return { reply, visualization: parsed.visualization, contextKey: key };
+}
+
+/**
+ * One-shot narrative generation (session notes, reports).
+ * Unlike `ask` this never touches the chat history or memory distillation —
+ * it is a background job, not a conversation turn.
+ */
+async function narrate(prompt, { mode = 'notes', maxTokens = 600, temperature = 0.4, grounded = true } = {}) {
+  if (!isConfigured()) return '';
+  const system = [PERSONA, '', MODE_INSTRUCTIONS[mode] || ''];
+  if (grounded) {
+    system.push('', 'Use only the facts supplied in the user message. If a number is not given, do not state one.');
+  }
+
+  const reply = await request({
+    model: MODEL,
+    max_tokens: maxTokens,
+    temperature,
+    messages: [
+      { role: 'system', content: system.join('\n') },
+      { role: 'user', content: String(prompt).slice(0, 12000) }
+    ]
+  });
+  return String(reply || '').trim();
 }
 
 /** Ask the model for durable notes about the learner and store them. */
@@ -397,4 +447,4 @@ function prepPlan(problemId, companySlug) {
   };
 }
 
-module.exports = { ask, prepPlan, isConfigured, contextKey, MODEL };
+module.exports = { ask, narrate, prepPlan, isConfigured, contextKey, MODEL };

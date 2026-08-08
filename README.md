@@ -46,7 +46,7 @@ Requires **Node 18+** and a **JDK** on your `PATH` (`javac` / `java` are used to
 Set `MERCURY_API_KEY` in `web/.env` (git-ignored; `web/.env.example` is the template). Without a key the
 app works fine and the tutor panel is simply disabled.
 
-The tutor has five modes, all available from the panel next to the editor:
+The tutor has six modes, all available from the panel next to the editor:
 
 | Mode | What it does |
 |---|---|
@@ -54,11 +54,56 @@ The tutor has five modes, all available from the panel next to the editor:
 | **Learn first** | Builds an ordered study plan from the curriculum + easier bank questions |
 | **Hint** | One smallest-next-step nudge, based on how far your code already got |
 | **Review my code** | Points at the first real bug in *your* code, with the fix and the complexity |
+| **Visualize** | Builds a validated step trace for arrays, linked lists, trees/graphs, stacks/queues, or DP/recursion, with Play/Pause/Previous/Next controls and speed selection |
 | **Debrief** | After a solve: the pattern, the optimal complexity, and what to do next |
+
+Visualization steps highlight their matching Java source line in the editor. Mercury emits a bounded JSON state block; the server validates and sanitizes it before the UI renders text and SVG, so model-generated HTML or executable code is never trusted.
 
 It also keeps **long-term memory**: durable notes about your goals, misconceptions and mastered topics,
 plus automatically tracked strong/weak topics. Everything it remembers is visible — and deletable — on the
 **Progress** page.
+
+---
+
+## Learning OS (analytics, assessments, career)
+
+The studio tracks **your real behaviour** only — no seeded mastery, fake streaks, demo readiness %, or claimed hiring probabilities.
+
+| Piece | What it does |
+|---|---|
+| **Events** | Lesson/problem opens, focus buckets with **active vs idle typing time**, sample runs, submits, tutor messages → `state.json` event log. Topics are resolved server-side, so a signal always lands on the right map node |
+| **Feature engine** | Explainable mastery and company-topic readiness from accuracy, recency, tutor dependence, measured active-coding ratio (`web/lib/analytics.js`) — works **offline**, every score ships with evidence and limitations |
+| **Knowledge map + SRS** | Topic nodes fade over time; overdue items hit the revise queue. Insights draws the map (node size/colour = real mastery, edges = topics you practise together) |
+| **Daily goals** | Checklist from your path + weak/due topics, tickable on Home **and** Insights |
+| **Timed mocks** | Real guided bank + Java judge. The clock is enforced **on the server**: a late answer is refused and the session auto-submits; answering the last item scores it immediately |
+| **Placement assessment v1** | Deterministic topic diagnostics, balanced difficulty blueprints, server-only generated cases, honest confidence labels, and an evidence-backed seven-day revision plan. Readiness measures topic preparation, **not hiring probability** |
+| **Active-learning lessons** | Prerequisite status, retrieval checkpoints, misconception callouts, and post-lesson reflections are attached to the 178 runnable lessons. Retrieval evidence is stored separately and never counted as a solved coding problem |
+| **Secure local judge** | Each submission runs in a private temporary directory with JVM memory/CPU/time limits. On macOS, Seatbelt also blocks user-profile reads, external writes, network access, and subprocesses; security probes run in `npm run check` |
+| **Durable data** | State writes use fsync + atomic rename, rotate three valid backups, and recover from corruption. Progress offers checksummed export/import; modified exports are rejected |
+| **Complete placement prep** | `#/placement` adds CS fundamentals, system design, behavioral communication, resume/projects, applications, and transparent interview rubrics. All progress comes from recorded evidence; outcomes never become a claimed hiring probability |
+| **Session notes** | On session end, Mercury writes the note (badged **AI** in the feed); without a key a local template is stored instead |
+| **Career days** | Default Wed/Sun counselling view grounded on the same real feature vector, with its own persisted thread |
+| **Personal records** | You vs past weeks — best streak, best mock, weekly XP |
+
+UI routes: `#/insights`, `#/mock`, `#/career`, `#/placement`. Assessment APIs: `/api/diagnostics`, `/api/revision-plan`, `/api/revise?days=7`; backup APIs: `/api/data/export`, `/api/data/import`, `/api/data/health`; placement APIs live under `/api/placement`; other Learning OS APIs remain under `/api/events`, `/api/insights`, `/api/graph`, `/api/goals/today`, `/api/mocks`, `/api/notes`, `/api/counsel/*`, and `/api/records`.
+
+**Practice never lies to the analytics:** *Run samples* is logged as practice only — accuracy, attempts-to-solve and mastery move on **Submit** alone.
+
+### Checking it yourself
+
+```bash
+cd web
+npm test                    # fixture tests: mastery, SRS, mock rules, records (offline, no judge)
+npm run smoke               # boots the server and exercises every route
+npm run check               # test + smoke + problem-bank verifier
+```
+
+Both suites run against a **scratch state file**, so they never touch your real progress.
+
+| Variable | Use |
+|---|---|
+| `DSA_STORE_FILE` | Point the store at another JSON file (used by the tests) |
+| `MERCURY_DISABLED=1` | Force the offline path — scores, goals and mocks must still work with the tutor down |
 
 ---
 
@@ -71,7 +116,7 @@ Built for learning rather than for looking fancy:
 - `Tab` / `Shift-Tab` indent for the line or the whole selection
 - `⌘/Ctrl + /` comment toggle, `Alt + ↑/↓` move line, `⌘/Ctrl + D` duplicate line
 - `⌘/Ctrl + Shift + F` re-indent the file, `⌘/Ctrl + Enter` run, `⌘/Ctrl + S` save draft
-- live Java syntax colouring, line numbers, cursor position, adjustable font size
+- live Java syntax colouring, line numbers, tutor-synchronized execution-line highlighting, cursor position, adjustable font size
 - drafts autosave per problem, so you can leave and come back
 
 Global: `⌘/Ctrl + K` opens a command palette over every chapter, lesson, problem and company.
@@ -116,9 +161,17 @@ web/
   data/bank/*.js            curated problems (statement + tests + editorial)
   lib/judge.js              compiles and grades Java submissions
   lib/catalog.js            merges lessons + company lists into one catalog
-  lib/store.js              profile, progress, streaks, tutor memory (JSON on disk)
-  lib/tutor.js              Mercury 2 tutor: context, modes, memory
+  lib/store.js              profile, progress, streaks, events, topics, mocks (JSON on disk)
+  lib/analytics.js          feature engine: mastery, company readiness, graph, patterns
+  lib/assessment.js         diagnostics, private cases, seven-day revision plans
+  lib/placement.js          non-DSA tracks, interview rubrics, applications/outcomes
+  lib/srs.js                spaced repetition: decay, review dates, revise queue
+  lib/mock.js               timed test builder + server-side exam clock
+  lib/jobs.js               session notes, daily goals, counselling schedule
+  lib/tutor.js              Mercury 2 tutor: context, modes, memory, narration
   tools/verify-bank.js      quality gate for the problem bank
+  tools/test-analytics.js   fixture tests for the Learning OS logic
+  tools/smoke.js            end-to-end route check
   public/                   the single-page front end (vanilla ES modules)
 ```
 

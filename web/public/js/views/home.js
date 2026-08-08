@@ -12,6 +12,7 @@ export async function render(root, _route) {
     title: 'Java DSA Studio',
     crumb: state.profile && state.profile.name ? `Hi, ${state.profile.name}` : '',
     actions: [
+      h('button', { class: 'btn btn-sm', onClick: () => { location.hash = '#/insights'; } }, 'Insights'),
       h('button', { class: 'btn btn-sm', onClick: () => { location.hash = '#/learn'; } }, 'Browse curriculum'),
       h('button', { class: 'btn btn-primary btn-sm', onClick: () => { location.hash = '#/practice'; } }, 'Practise')
     ]
@@ -21,9 +22,9 @@ export async function render(root, _route) {
   root.append(body);
   const pad = body.firstChild;
 
-  let next;
+  let next, goals;
   try {
-    next = await api.nextUp();
+    [next, goals] = await Promise.all([api.nextUp(), api.goalsToday().catch(() => null)]);
   } catch (err) {
     pad.replaceChildren(errorBox(err.message));
     return;
@@ -32,6 +33,38 @@ export async function render(root, _route) {
   const summary = next.summary;
   const stats = state.stats || {};
   const nodes = [];
+
+  if (goals && goals.items) {
+    const xp = h('span', { class: 'dim' }, `${goals.xp || 0} XP today`);
+    nodes.push(h('div', { class: 'card' },
+      h('div', { class: 'row' },
+        h('strong', {}, "Today's goals"),
+        h('span', { class: 'spacer' }),
+        xp,
+        h('button', { class: 'btn btn-ghost btn-sm', onClick: () => navigate('#/insights') }, 'Open Insights')),
+      h('div', { class: 'goal-strip mt-s' },
+        ...goals.items.slice(0, 5).map((item) => {
+          const label = h('span', {}, item.label);
+          const row = h('label', { class: `goal-item${item.done ? ' done' : ''}` },
+            h('input', {
+              type: 'checkbox',
+              checked: !!item.done,
+              // Ticked here or on Insights — same server-side checklist.
+              onChange: async (e) => {
+                try {
+                  const updated = await api.patchGoal(item.id, e.target.checked);
+                  row.classList.toggle('done', e.target.checked);
+                  xp.textContent = `${updated.xp || 0} XP today`;
+                } catch (err) {
+                  e.target.checked = !e.target.checked;
+                  toast(err.message, 'error');
+                }
+              }
+            }),
+            label);
+          return row;
+        }))));
+  }
 
   // ---- hero --------------------------------------------------------------
   const current = next.currentChapter;

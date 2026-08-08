@@ -17,6 +17,13 @@ const catalog = require('./lib/catalog');
 const judge = require('./lib/judge');
 const store = require('./lib/store');
 const tutor = require('./lib/tutor');
+const analytics = require('./lib/analytics');
+const srs = require('./lib/srs');
+const mock = require('./lib/mock');
+const jobs = require('./lib/jobs');
+const assessment = require('./lib/assessment');
+const learning = require('./lib/learning');
+const placement = require('./lib/placement');
 const { CHAPTERS, PATHS, TOPICS, getPath } = require('./data/curriculum');
 
 const app = express();
@@ -78,7 +85,9 @@ app.get('/api/progress', asyncRoute((req, res) => {
 app.post('/api/progress/lesson', asyncRoute((req, res) => {
   const { lessonId, status = 'completed', minutes = 0 } = req.body || {};
   if (!lessonId) return res.status(400).json({ error: 'lessonId is required' });
-  res.json({ lesson: store.markLesson(lessonId, status, minutes), summary: store.summary() });
+  const lesson = store.markLesson(lessonId, status, minutes);
+  if (status === 'completed') srs.applyLessonComplete(lessonId);
+  res.json({ lesson, summary: store.summary() });
 }));
 
 app.post('/api/progress/draft', asyncRoute((req, res) => {
@@ -92,6 +101,38 @@ app.post('/api/progress/reset', asyncRoute((req, res) => {
   store.resetAll();
   res.json({ ok: true, profile: store.getProfile(), summary: store.summary() });
 }));
+
+app.get('/api/data/export', asyncRoute((req, res) => {
+  res.setHeader('Content-Disposition', `attachment; filename="java-dsa-studio-${store.today()}.json"`);
+  res.json(store.exportState());
+}));
+
+app.post('/api/data/import', asyncRoute((req, res) => {
+  try {
+    res.json(store.importState(req.body));
+  } catch (err) {
+    res.status(400).json({ error: err.message, code: 'INVALID_EXPORT' });
+  }
+}));
+
+app.get('/api/data/health', asyncRoute((req, res) => res.json(store.storageHealth())));
+
+app.get('/api/placement', asyncRoute((req, res) => res.json(placement.dashboard())));
+
+function placementWrite(handler) {
+  return asyncRoute((req, res) => {
+    try {
+      res.status(201).json(handler(req.body || {}));
+    } catch (err) {
+      res.status(400).json({ error: err.message, code: 'INVALID_PLACEMENT_EVIDENCE' });
+    }
+  });
+}
+
+app.post('/api/placement/evidence', placementWrite(placement.addEvidence));
+app.post('/api/placement/applications', placementWrite(placement.addApplication));
+app.post('/api/placement/simulations', placementWrite(placement.addSimulation));
+app.post('/api/placement/outcomes', placementWrite(placement.addOutcome));
 
 /** Personalised "what next" queue: unfinished path chapters + due problems. */
 app.get('/api/next-up', asyncRoute((req, res) => {
@@ -192,8 +233,25 @@ app.get('/api/lessons/:chapterId/:lessonName', asyncRoute((req, res) => {
     prev: index > 0 ? siblings[index - 1] : null,
     next: index >= 0 && index < siblings.length - 1 ? siblings[index + 1] : null,
     practice: catalog.questionsForChapter(lesson.chapterId, 6),
-    status: (progress.lessons[lessonId] || {}).status || 'in-progress'
+    status: (progress.lessons[lessonId] || {}).status || 'in-progress',
+    activeLearning: learning.publicActivities(learning.lessonActivities(lessonId))
   });
+}));
+
+app.post('/api/lessons/:chapterId/:lessonName/checkpoints/:checkpointId', asyncRoute((req, res) => {
+  const lessonId = `${req.params.chapterId}/${req.params.lessonName}`;
+  const result = learning.answerCheckpoint(lessonId, req.params.checkpointId, req.body && req.body.answerIndex);
+  if (!result) return res.status(404).json({ error: 'Lesson checkpoint not found' });
+  res.json(result);
+}));
+
+app.post('/api/lessons/:chapterId/:lessonName/reflection', asyncRoute((req, res) => {
+  const lessonId = `${req.params.chapterId}/${req.params.lessonName}`;
+  const text = String((req.body && req.body.text) || '').trim();
+  if (text.length < 10) return res.status(400).json({ error: 'Write at least 10 characters for a useful reflection.' });
+  const reflection = learning.saveReflection(lessonId, text);
+  if (!reflection) return res.status(404).json({ error: 'Lesson not found' });
+  res.json({ reflection });
 }));
 
 // ===========================================================================
@@ -294,13 +352,25 @@ app.post('/api/submit', asyncRoute(async (req, res) => {
   }
 
   const bank = require('./data/problem-bank').getProblem(question.number);
-  const tests = runSamplesOnly ? bank.tests.slice(0, 3) : bank.tests;
+  const tests = runSamplesOnly
+    ? bank.tests.slice(0, 3)
+    : [...bank.tests, ...assessment.privateTestsFor(question.id)];
 
   const result = await judge.runTests(code, tests, bank.testHelpers);
-  const entry = store.recordAttempt(question.id, {
-    passed: result.passed, total: result.total, status: result.status,
-    code, elapsedMs: result.elapsedMs, topics: question.topics
-  });
+
+  // Running the samples is practice; only a real submit counts as an attempt.
+  const entry = runSamplesOnly
+    ? store.recordSampleRun(question.id, {
+      passed: result.passed, total: result.total, status: result.status,
+      code, elapsedMs: result.elapsedMs, topics: question.topics
+    })
+    : store.recordAttempt(question.id, {
+      passed: result.passed, total: result.total, status: result.status,
+      code, elapsedMs: result.elapsedMs, topics: question.topics
+    });
+  if (!runSamplesOnly) {
+    srs.applyProblemResult(question.topics || [], { solved: result.status === 'Accepted' });
+  }
 
   res.json({
     ...result,
@@ -334,6 +404,26 @@ app.delete('/api/tutor/thread', asyncRoute((req, res) => {
   res.json({ ok: true });
 }));
 
+/**
+ * Tutor usage is a first-class behaviour signal (tutor-dependence in the
+ * feature engine), so every answered question is logged against its topics.
+ */
+function trackTutorUse(context = {}, mode = 'chat') {
+  try {
+    store.appendEvents([{
+      type: 'tutor_msg',
+      payload: {
+        mode,
+        problemId: context.problemId || null,
+        lessonId: context.lessonId || null,
+        topics: catalog.topicsForContext(context)
+      }
+    }]);
+  } catch (err) {
+    console.warn('[events] could not log tutor usage:', err.message);
+  }
+}
+
 /** Streaming chat (Server-Sent Events). */
 app.post('/api/tutor/ask', asyncRoute(async (req, res) => {
   const { message = '', context = {}, mode = 'chat', stream = true } = req.body || {};
@@ -343,8 +433,9 @@ app.post('/api/tutor/ask', asyncRoute(async (req, res) => {
   }
 
   if (!stream) {
-    const { reply } = await tutor.ask({ message, context, mode });
-    return res.json({ reply });
+    const { reply, visualization } = await tutor.ask({ message, context, mode });
+    trackTutorUse(context, mode);
+    return res.json({ reply, visualization });
   }
 
   res.writeHead(200, {
@@ -357,8 +448,9 @@ app.post('/api/tutor/ask', asyncRoute(async (req, res) => {
   const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
   try {
-    const { reply } = await tutor.ask({ message, context, mode }, (chunk) => send('chunk', { text: chunk }));
-    send('done', { reply });
+    const { reply, visualization } = await tutor.ask({ message, context, mode }, (chunk) => send('chunk', { text: chunk }));
+    trackTutorUse(context, mode);
+    send('done', { reply, visualization });
   } catch (err) {
     send('error', { error: err.message });
   }
@@ -377,6 +469,179 @@ app.post('/api/tutor/memory', asyncRoute((req, res) => {
 
 app.delete('/api/tutor/memory/:index', asyncRoute((req, res) => {
   res.json(store.forgetFact(Number(req.params.index)));
+}));
+
+// ===========================================================================
+// Learning OS — events, insights, SRS, goals, mocks, notes, counsel
+// ===========================================================================
+
+app.post('/api/events', asyncRoute((req, res) => {
+  const body = req.body || {};
+  const batch = Array.isArray(body.events) ? body.events : (body.type ? [body] : []);
+  if (!batch.length) return res.status(400).json({ error: 'events array required' });
+
+  // The client only knows what it is looking at; topics are resolved here so
+  // time and typing land on the right nodes of the knowledge map.
+  const capped = batch.slice(0, 50).map((ev) => {
+    const payload = ev && ev.payload && typeof ev.payload === 'object' ? { ...ev.payload } : {};
+    if (!Array.isArray(payload.topics) || !payload.topics.length) {
+      const topics = catalog.topicsForContext(payload);
+      if (topics.length) payload.topics = topics;
+    }
+    return { ...ev, payload };
+  });
+  res.json(store.appendEvents(capped));
+}));
+
+app.get('/api/events', asyncRoute((req, res) => {
+  res.json({
+    events: store.getEvents({
+      limit: Math.min(Number(req.query.limit) || 100, 500),
+      type: req.query.type,
+      since: req.query.since
+    })
+  });
+}));
+
+app.get('/api/insights', asyncRoute((req, res) => {
+  res.json(analytics.computeInsights({ useCache: req.query.refresh !== '1' }));
+}));
+
+app.get('/api/graph', asyncRoute((req, res) => {
+  res.json(analytics.getGraph());
+}));
+
+app.get('/api/revise', asyncRoute((req, res) => {
+  const queue = srs.reviseQueue({ limit: Number(req.query.limit) || 20 });
+  const days = Number(req.query.days) || 0;
+  res.json(days ? { ...queue, plan: assessment.revisionPlan({ days }) } : queue);
+}));
+
+app.get('/api/diagnostics', asyncRoute((req, res) => {
+  res.json(assessment.topicDiagnostics());
+}));
+
+app.get('/api/revision-plan', asyncRoute((req, res) => {
+  res.json(assessment.revisionPlan({ days: Number(req.query.days) || 7 }));
+}));
+
+app.post('/api/diagnostics', asyncRoute((req, res) => {
+  const { count = 6, topicSlugs = [] } = req.body || {};
+  res.json(assessment.buildDiagnostic({ count, topicSlugs }));
+}));
+
+app.get('/api/goals/today', asyncRoute((req, res) => {
+  res.json(jobs.syncGoalsWithProgress());
+}));
+
+app.post('/api/goals/today', asyncRoute((req, res) => {
+  const { id, done } = req.body || {};
+  if (!id) return res.status(400).json({ error: 'id is required' });
+  jobs.ensureTodayGoals();
+  const goals = store.patchGoalItem(id, done);
+  if (!goals) return res.status(404).json({ error: 'goal item not found' });
+  res.json(goals);
+}));
+
+app.get('/api/reminder', asyncRoute((req, res) => {
+  res.json(jobs.reminder());
+}));
+
+app.post('/api/mocks', asyncRoute((req, res) => {
+  const { count = 3, minutes = 45, strict = true, topicSlugs = [], purpose = 'practice' } = req.body || {};
+  try {
+    const session = mock.startMock({ count, minutes, strict, topicSlugs, purpose });
+    res.json(session);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}));
+
+app.get('/api/mocks/active', asyncRoute((req, res) => {
+  res.json({ mock: mock.getActiveMock() });
+}));
+
+app.get('/api/mocks/:id', asyncRoute((req, res) => {
+  const m = store.getMock(req.params.id);
+  if (!m) return res.status(404).json({ error: 'Mock not found' });
+  mock.expireIfDue(m);
+  res.json({ ...store.getMock(req.params.id), remainingMs: mock.remainingMs(m) });
+}));
+
+app.post('/api/mocks/:id/answer', asyncRoute(async (req, res) => {
+  const { problemId, code } = req.body || {};
+  if (!problemId) return res.status(400).json({ error: 'problemId is required' });
+  try {
+    const out = await mock.answerMock(req.params.id, { problemId, code });
+    res.json(out);
+  } catch (err) {
+    const codeStatus = err.code === 'NOT_FOUND' ? 404 : err.code === 'EXPIRED' ? 409 : 400;
+    res.status(codeStatus).json({
+      error: err.message,
+      code: err.code || 'ERROR',
+      mock: store.getMock(req.params.id)
+    });
+  }
+}));
+
+app.post('/api/mocks/:id/finish', asyncRoute((req, res) => {
+  try {
+    res.json(mock.finishMock(req.params.id));
+  } catch (err) {
+    res.status(err.code === 'NOT_FOUND' ? 404 : 400).json({ error: err.message });
+  }
+}));
+
+app.get('/api/notes', asyncRoute((req, res) => {
+  res.json({ notes: store.getNotes(Number(req.query.limit) || 40) });
+}));
+
+app.post('/api/sessions/end', asyncRoute(async (req, res) => {
+  const { context = {}, outcomes = {}, ai = true } = req.body || {};
+  const note = await jobs.writeSessionNote({ context, outcomes, useAi: ai !== false });
+  res.json({ note });
+}));
+
+app.get('/api/counsel/next', asyncRoute((req, res) => {
+  res.json(jobs.counselNext());
+}));
+
+app.post('/api/counsel/chat', asyncRoute(async (req, res) => {
+  const { message } = req.body || {};
+  if (!message) return res.status(400).json({ error: 'message is required' });
+  if (!tutor.isConfigured()) return res.status(503).json({ error: 'Tutor not configured' });
+
+  const snapshot = jobs.counselNext();
+  const insights = analytics.computeInsights({ useCache: true });
+  const grounding = JSON.stringify({
+    readinessBlurb: snapshot.readinessBlurb,
+    shortlist: snapshot.shortlist,
+    focus: snapshot.focus,
+    targetCompany: snapshot.targetCompany,
+    records: insights.records,
+    empty: insights.empty
+  });
+
+  const out = await tutor.ask({
+    message,
+    grounding,
+    context: { kind: 'counsel' },
+    mode: 'career'
+  });
+  const replyText = (out && out.reply) || '';
+  store.saveCounsel({ lastSessionAt: new Date().toISOString() });
+  const counsel = store.getCounsel();
+  counsel.history = (counsel.history || []).concat([{
+    at: new Date().toISOString(),
+    message: String(message).slice(0, 500),
+    reply: String(replyText).slice(0, 4000)
+  }]).slice(-30);
+  store.saveCounsel({ history: counsel.history });
+  res.json({ reply: replyText, snapshot });
+}));
+
+app.get('/api/records', asyncRoute((req, res) => {
+  res.json(store.getRecords());
 }));
 
 // ===========================================================================

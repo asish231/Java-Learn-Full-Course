@@ -9,15 +9,29 @@
  * The harness communicates with Node through single-line, base64 encoded records:
  *   @@CASE|<index>|<b64 name>|<b64 input>|<b64 expected>|<b64 actual>|<b64 error>
  */
-const { exec } = require('child_process');
+const { execFile, execFileSync } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
-const TEMP_DIR = path.join(__dirname, '..', 'temp');
+const TEMP_DIR = path.join(os.tmpdir(), `java-dsa-studio-${typeof process.getuid === 'function' ? process.getuid() : 'user'}`);
 const COMPILE_TIMEOUT_MS = 20000;
 const RUN_TIMEOUT_MS = 10000;
 
-if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
+if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true, mode: 0o700 });
+
+function executable(name) {
+  try {
+    return fs.realpathSync(String(execFileSync('/usr/bin/which', [name], { encoding: 'utf8' })).trim());
+  } catch {
+    return name;
+  }
+}
+
+const JAVA_BIN = executable('java');
+const JAVAC_BIN = executable('javac');
+const SANDBOX_BIN = process.platform === 'darwin' && fs.existsSync('/usr/bin/sandbox-exec')
+  ? '/usr/bin/sandbox-exec' : null;
 
 // ---------------------------------------------------------------------------
 // Source utilities
@@ -50,14 +64,22 @@ function normalizeSolutionClass(code) {
     .replace(new RegExp(`\\bnew\\s+${match[1]}\\s*\\(`, 'g'), 'new Solution(');
 }
 
-function cleanup(className) {
-  try {
-    for (const file of fs.readdirSync(TEMP_DIR)) {
-      if (file.startsWith(className)) {
-        try { fs.unlinkSync(path.join(TEMP_DIR, file)); } catch (_) { /* ignore */ }
-      }
-    }
-  } catch (_) { /* ignore */ }
+function cleanup(runDir) {
+  try { fs.rmSync(runDir, { recursive: true, force: true }); } catch (_) { /* ignore */ }
+}
+
+function seatbeltProfile(runDir) {
+  const escaped = runDir.replace(/(["\\])/g, '\\$1');
+  const home = String(process.env.HOME || '').replace(/(["\\])/g, '\\$1');
+  return `(version 1)
+(allow default)
+(deny network*)
+(deny process-exec (require-not (literal "${JAVA_BIN}")))
+${home ? `(deny file-read* (subpath "${home}"))` : ''}
+(deny file-write* (require-all
+  (require-not (subpath "${escaped}"))
+  (require-not (literal "/dev/null"))))
+`;
 }
 
 function dedupeImports(list) {
@@ -80,7 +102,9 @@ function dedupeImports(list) {
  */
 function compileAndRun(className, source, stdin, lineOffset = 0) {
   return new Promise((resolve) => {
-    const filePath = path.join(TEMP_DIR, `${className}.java`);
+    const runDir = fs.mkdtempSync(path.join(TEMP_DIR, 'run-'));
+    fs.chmodSync(runDir, 0o700);
+    const filePath = path.join(runDir, `${className}.java`);
     const started = Date.now();
 
     fs.writeFile(filePath, source, (writeErr) => {
@@ -88,10 +112,11 @@ function compileAndRun(className, source, stdin, lineOffset = 0) {
         return resolve({ status: 'Internal Error', error: writeErr.message, elapsedMs: 0 });
       }
 
-      exec(`javac -nowarn -d "${TEMP_DIR}" "${filePath}"`, { timeout: COMPILE_TIMEOUT_MS },
+      execFile(JAVAC_BIN, ['-nowarn', '-proc:none', '-d', runDir, filePath],
+        { timeout: COMPILE_TIMEOUT_MS, cwd: runDir, maxBuffer: 2 * 1024 * 1024 },
         (compileErr, _out, compileStderr) => {
           if (compileErr) {
-            cleanup(className);
+            cleanup(runDir);
             return resolve({
               status: 'Compilation Error',
               error: humanizeCompileError(compileStderr || compileErr.message, className, lineOffset),
@@ -99,11 +124,18 @@ function compileAndRun(className, source, stdin, lineOffset = 0) {
             });
           }
 
-          const child = exec(`java -cp "${TEMP_DIR}" ${className}`,
-            { timeout: RUN_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024 },
+          const javaArgs = [
+            '-Xms16m', '-Xmx128m', '-Xss512k', '-XX:MaxMetaspaceSize=96m',
+            '-XX:ActiveProcessorCount=1', '-Djava.awt.headless=true', `-Djava.io.tmpdir=${runDir}`,
+            '-cp', runDir, className
+          ];
+          const command = SANDBOX_BIN || JAVA_BIN;
+          const args = SANDBOX_BIN ? ['-p', seatbeltProfile(runDir), JAVA_BIN, ...javaArgs] : javaArgs;
+          const child = execFile(command, args,
+            { timeout: RUN_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024, cwd: runDir, env: { PATH: '/usr/bin:/bin' } },
             (runErr, stdout, stderr) => {
               const elapsedMs = Date.now() - started;
-              cleanup(className);
+              cleanup(runDir);
               if (runErr && runErr.killed) {
                 return resolve({ status: 'Time Limit Exceeded', stdout, error: 'Execution exceeded the time limit (possible infinite loop).', elapsedMs });
               }
@@ -261,13 +293,15 @@ async function runTests(code, tests, helpers) {
       const actual = decode(parts[5]);
       const error = decode(parts[6]);
       const unordered = !!(tests[index] && tests[index].unordered);
+      const isPrivate = !!(tests[index] && tests[index].private);
       byIndex.set(index, {
         index,
-        name: decode(parts[2]),
-        input: decode(parts[3]),
-        expected,
-        actual,
+        name: isPrivate ? `Private case ${index + 1}` : decode(parts[2]),
+        input: isPrivate ? '' : decode(parts[3]),
+        expected: isPrivate ? '' : expected,
+        actual: isPrivate ? '' : actual,
         error,
+        hidden: isPrivate,
         passed: !error && normalizeAnswer(actual, unordered) === normalizeAnswer(expected, unordered)
       });
     } else if (line.trim().length > 0) {
@@ -277,11 +311,12 @@ async function runTests(code, tests, helpers) {
 
   const results = tests.map((test, index) => byIndex.get(index) || {
     index,
-    name: test.name || `Case ${index + 1}`,
-    input: test.input || '',
-    expected: String(test.expected),
+    name: test.private ? `Private case ${index + 1}` : (test.name || `Case ${index + 1}`),
+    input: test.private ? '' : (test.input || ''),
+    expected: test.private ? '' : String(test.expected),
     actual: '',
     error: 'Case did not finish — the program stopped early (timeout, crash or System.exit).',
+    hidden: !!test.private,
     passed: false
   });
 
@@ -297,4 +332,13 @@ async function runTests(code, tests, helpers) {
   };
 }
 
-module.exports = { runFreeform, runTests, TEMP_DIR };
+module.exports = {
+  runFreeform,
+  runTests,
+  TEMP_DIR,
+  securityStatus: () => ({
+    seatbelt: !!SANDBOX_BIN,
+    isolatedTemp: TEMP_DIR,
+    limits: { runMs: RUN_TIMEOUT_MS, compileMs: COMPILE_TIMEOUT_MS, heapMb: 128, metaspaceMb: 96, processors: 1 }
+  })
+};

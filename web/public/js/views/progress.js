@@ -12,6 +12,8 @@ export async function render(root, route) {
     title: 'Progress',
     crumb: state.profile.goal ? `goal: ${state.profile.goal}` : '',
     actions: [
+      h('button', { class: 'btn btn-ghost btn-sm', onClick: exportBackup }, 'Export backup'),
+      h('button', { class: 'btn btn-ghost btn-sm', onClick: () => importBackup(root, route) }, 'Import backup'),
       h('button', { class: 'btn btn-ghost btn-sm', onClick: () => resetAll(root, route) }, 'Reset progress')
     ]
   }));
@@ -172,4 +174,42 @@ async function resetAll(root, route) {
   toast('Progress cleared.', 'warn');
   root.replaceChildren();
   render(root, route);
+}
+
+async function exportBackup() {
+  try {
+    const data = await api.exportData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `java-dsa-studio-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    toast('Checksummed backup exported.', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function importBackup(root, route) {
+  const picker = h('input', {
+    type: 'file',
+    accept: 'application/json,.json',
+    style: { display: 'none' },
+    onChange: async (event) => {
+      const file = event.target.files[0];
+      if (!file || !confirm('Replace current learning data with this verified backup? A server backup is kept automatically.')) return;
+      try {
+        await api.importData(JSON.parse(await file.text()));
+        toast('Backup verified and imported.', 'success');
+        root.replaceChildren();
+        render(root, route);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    }
+  });
+  document.body.append(picker);
+  picker.click();
+  picker.addEventListener('change', () => picker.remove(), { once: true });
 }

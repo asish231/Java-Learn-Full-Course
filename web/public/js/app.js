@@ -7,11 +7,16 @@
 import { h, toast, esc } from './util.js';
 import { api } from './api.js';
 import { state, loadBootstrap, applyTheme, onRoute, navigate, parseRoute } from './state.js';
+import { startFocus, track } from './track.js';
 
 const NAV = [
   { id: 'home', icon: '🏠', label: 'Home', hash: '#/' },
   { id: 'learn', icon: '📚', label: 'Learn', hash: '#/learn' },
   { id: 'practice', icon: '⚔️', label: 'Practice', hash: '#/practice' },
+  { id: 'insights', icon: '🧠', label: 'Insights', hash: '#/insights' },
+  { id: 'mock', icon: '⏱️', label: 'Mock', hash: '#/mock' },
+  { id: 'career', icon: '🧭', label: 'Career', hash: '#/career' },
+  { id: 'placement', icon: '💼', label: 'Placement', hash: '#/placement' },
   { id: 'progress', icon: '📈', label: 'Progress', hash: '#/progress' }
 ];
 
@@ -21,7 +26,11 @@ const VIEWS = {
   lesson: () => import('./views/lesson.js'),
   practice: () => import('./views/practice.js'),
   problem: () => import('./views/workspace.js'),
-  progress: () => import('./views/progress.js')
+  progress: () => import('./views/progress.js'),
+  insights: () => import('./views/insights.js'),
+  mock: () => import('./views/mock.js'),
+  career: () => import('./views/career.js'),
+  placement: () => import('./views/placement.js')
 };
 
 const appEl = document.getElementById('app');
@@ -44,6 +53,8 @@ let railEl;
 
   renderShell();
   registerShortcuts();
+  startFocus();
+  track('app_open', {});
 
   if (!state.profile.onboardedAt) startOnboarding();
 
@@ -55,7 +66,7 @@ let railEl;
 // ===========================================================================
 
 function renderShell() {
-  railEl = h('nav', { class: 'rail' },
+  railEl = h('nav', { class: 'rail', 'aria-label': 'Primary navigation' },
     h('div', { class: 'rail-logo', title: 'Java DSA Studio' }, '☕'),
     ...NAV.map((item) => h('button', {
       class: 'rail-btn', dataset: { nav: item.id },
@@ -76,14 +87,20 @@ function renderShell() {
     }, '⚙️', h('span', { class: 'rail-label' }, 'Preferences'))
   );
 
-  mainEl = h('div', { class: 'main' });
+  mainEl = h('main', { class: 'main', id: 'main-content', tabindex: '-1' });
   appEl.replaceChildren(railEl, mainEl);
 }
 
 function setActiveNav(name) {
-  const active = { home: 'home', learn: 'learn', lesson: 'learn', practice: 'practice', problem: 'practice', progress: 'progress' }[name];
+  const active = {
+    home: 'home', learn: 'learn', lesson: 'learn', practice: 'practice', problem: 'practice',
+    progress: 'progress', insights: 'insights', mock: 'mock', career: 'career'
+  }[name];
   railEl.querySelectorAll('[data-nav]').forEach((node) => {
-    node.classList.toggle('active', node.dataset.nav === active);
+    const selected = node.dataset.nav === active;
+    node.classList.toggle('active', selected);
+    if (selected) node.setAttribute('aria-current', 'page');
+    else node.removeAttribute('aria-current');
   });
 }
 
@@ -95,6 +112,7 @@ async function renderRoute(route) {
   try {
     const view = await loader();
     await view.render(mainEl, route);
+    document.title = `${mainEl.querySelector('h1')?.textContent || 'Java DSA Studio'} — Java DSA Studio`;
   } catch (err) {
     console.error(err);
     mainEl.replaceChildren(h('div', { class: 'empty' }, `⚠️ ${err.message}`));

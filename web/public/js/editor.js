@@ -24,9 +24,11 @@ export class CodeEditor {
 
     this.textarea = h('textarea', {
       class: 'ce-input', spellcheck: 'false', autocomplete: 'off',
-      autocapitalize: 'off', autocorrect: 'off', wrap: 'off'
+      autocapitalize: 'off', autocorrect: 'off', wrap: 'off',
+      'aria-label': `${filename || 'Java'} code editor`
     });
     this.highlight = h('pre', { class: 'ce-highlight', 'aria-hidden': 'true' });
+    this.executionLineEl = h('div', { class: 'ce-execution-line', 'aria-hidden': 'true' });
     this.gutter = h('div', { class: 'ce-gutter' });
     this.statusEl = h('div', { class: 'ce-status' });
     this.filenameEl = h('span', { class: 'ce-filename' }, filename);
@@ -40,7 +42,7 @@ export class CodeEditor {
         h('button', { class: 'ce-mini', title: 'Increase font size', onClick: () => this.zoom(1) }, 'A+'),
         h('button', { class: 'ce-mini', title: 'Re-indent the whole file (⌘⇧F)', onClick: () => this.format() }, 'Format')
       ),
-      h('div', { class: 'ce-body' }, this.gutter, h('div', { class: 'ce-scroll' }, this.highlight, this.textarea)),
+      h('div', { class: 'ce-body' }, this.gutter, h('div', { class: 'ce-scroll' }, this.executionLineEl, this.highlight, this.textarea)),
       this.statusEl
     );
 
@@ -53,7 +55,13 @@ export class CodeEditor {
     this.textarea.addEventListener('click', () => this.updateStatus());
     this.textarea.addEventListener('keyup', () => this.updateStatus());
 
+    if (typeof ResizeObserver !== 'undefined') {
+      this.ro = new ResizeObserver(() => this.syncScroll());
+      this.ro.observe(this.el);
+    }
+
     this.setValue(value);
+    this.el.__codeEditor = this;
   }
 
   // -- value -----------------------------------------------------------------
@@ -71,6 +79,30 @@ export class CodeEditor {
 
   setFilename(name) { this.filenameEl.textContent = name; }
 
+  highlightExecutionLine(line) {
+    const next = Number(line);
+    const count = this.textarea.value.split('\n').length;
+    this.executionLine = Number.isInteger(next) && next >= 1 && next <= count ? next : null;
+    this.updateExecutionLine();
+  }
+
+  clearExecutionLine() { this.executionLine = null; this.updateExecutionLine(); }
+
+  updateExecutionLine() {
+    for (const row of this.gutter.children) {
+      const active = Number(row.textContent) === this.executionLine;
+      if (active) row.dataset.executionLine = 'true';
+      else delete row.dataset.executionLine;
+    }
+    if (!this.executionLine) {
+      this.executionLineEl.style.display = 'none';
+      return;
+    }
+    const lineHeight = parseFloat(getComputedStyle(this.el).getPropertyValue('--ce-line-height')) || 21;
+    this.executionLineEl.style.display = 'block';
+    this.executionLineEl.style.transform = `translateY(${12 + (this.executionLine - 1) * lineHeight - this.textarea.scrollTop}px)`;
+  }
+
   // -- rendering -------------------------------------------------------------
 
   sync(notify = true) {
@@ -82,6 +114,8 @@ export class CodeEditor {
       this.gutter.innerHTML = Array.from({ length: lines }, (_, i) => `<span>${i + 1}</span>`).join('');
       this.renderedLines = lines;
     }
+    if (this.executionLine && this.executionLine > lines) this.executionLine = null;
+    this.updateExecutionLine();
     this.syncScroll();
     this.updateStatus();
     if (notify && this.onChange) this.onChange(code);
@@ -90,6 +124,7 @@ export class CodeEditor {
   syncScroll() {
     this.highlight.style.transform = `translate(${-this.textarea.scrollLeft}px, ${-this.textarea.scrollTop}px)`;
     this.gutter.scrollTop = this.textarea.scrollTop;
+    this.updateExecutionLine();
   }
 
   updateStatus() {
@@ -112,6 +147,19 @@ export class CodeEditor {
   applyFontSize() {
     this.el.style.setProperty('--ce-font-size', `${this.fontSize}px`);
     this.el.style.setProperty('--ce-line-height', `${Math.round(this.fontSize * 1.55)}px`);
+  }
+
+  scrollToCursor() {
+    const pos = this.textarea.selectionStart;
+    const before = this.textarea.value.slice(0, pos);
+    const line = before.split('\n').length;
+    const lineHeight = Math.round(this.fontSize * 1.55);
+    const cursorY = (line - 1) * lineHeight;
+    const clientHeight = this.textarea.clientHeight;
+    if (clientHeight > 0 && (cursorY < this.textarea.scrollTop || cursorY > this.textarea.scrollTop + clientHeight - lineHeight * 2)) {
+      this.textarea.scrollTop = Math.max(0, cursorY - Math.floor(clientHeight / 3));
+      this.syncScroll();
+    }
   }
 
   // -- editing primitives ----------------------------------------------------

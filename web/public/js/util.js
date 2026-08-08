@@ -15,6 +15,18 @@ export function h(tag, props = {}, ...children) {
     if (child == null || child === false) continue;
     el.append(child instanceof Node ? child : document.createTextNode(String(child)));
   }
+  if (props.onClick && !['button', 'a', 'input', 'select', 'textarea', 'summary'].includes(tag)) {
+    if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
+    if (!el.hasAttribute('tabindex')) el.tabIndex = 0;
+    if (!props.onKeyDown) {
+      el.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          props.onClick(event);
+        }
+      });
+    }
+  }
   return el;
 }
 

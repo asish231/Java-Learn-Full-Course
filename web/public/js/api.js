@@ -8,7 +8,14 @@ async function request(url, options = {}) {
   });
   const text = await res.text();
   const data = text ? JSON.parse(text) : {};
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  if (!res.ok) {
+    // Keep the server's status/code so callers can react (e.g. an expired mock).
+    const error = new Error(data.error || `Request failed (${res.status})`);
+    error.status = res.status;
+    error.code = data.code || '';
+    error.data = data;
+    throw error;
+  }
   return data;
 }
 
@@ -23,10 +30,22 @@ export const api = {
   saveDraft: (problemId, code) =>
     request('/api/progress/draft', { method: 'POST', body: { problemId, code } }),
   resetProgress: () => request('/api/progress/reset', { method: 'POST', body: {} }),
+  exportData: () => request('/api/data/export'),
+  importData: (envelope) => request('/api/data/import', { method: 'POST', body: envelope }),
+  storageHealth: () => request('/api/data/health'),
+  placement: () => request('/api/placement'),
+  addPlacementEvidence: (body) => request('/api/placement/evidence', { method: 'POST', body }),
+  addApplication: (body) => request('/api/placement/applications', { method: 'POST', body }),
+  addSimulation: (body) => request('/api/placement/simulations', { method: 'POST', body }),
+  addOutcome: (body) => request('/api/placement/outcomes', { method: 'POST', body }),
 
   chapters: () => request('/api/chapters'),
   chapter: (id) => request(`/api/chapters/${encodeURIComponent(id)}`),
   lesson: (lessonId) => request(`/api/lessons/${lessonId}`),
+  answerCheckpoint: (lessonId, checkpointId, answerIndex) => request(
+    `/api/lessons/${lessonId}/checkpoints/${encodeURIComponent(checkpointId)}`,
+    { method: 'POST', body: { answerIndex } }),
+  saveReflection: (lessonId, text) => request(`/api/lessons/${lessonId}/reflection`, { method: 'POST', body: { text } }),
 
   companies: (search = '') => request(`/api/companies?search=${encodeURIComponent(search)}`),
   companyQuestions: (slug, period = 'all') =>
@@ -52,9 +71,31 @@ export const api = {
   remember: (text) => request('/api/tutor/memory', { method: 'POST', body: { text } }),
   forget: (index) => request(`/api/tutor/memory/${index}`, { method: 'DELETE' }),
 
+  postEvents: (events) => request('/api/events', { method: 'POST', body: { events } }),
+  insights: (refresh = false) => request(`/api/insights${refresh ? '?refresh=1' : ''}`),
+  graph: () => request('/api/graph'),
+  revise: () => request('/api/revise'),
+  diagnostics: () => request('/api/diagnostics'),
+  buildDiagnostic: (body = {}) => request('/api/diagnostics', { method: 'POST', body }),
+  revisionPlan: (days = 7) => request(`/api/revision-plan?days=${encodeURIComponent(days)}`),
+  goalsToday: () => request('/api/goals/today'),
+  patchGoal: (id, done) => request('/api/goals/today', { method: 'POST', body: { id, done } }),
+  reminder: () => request('/api/reminder'),
+  startMock: (body = {}) => request('/api/mocks', { method: 'POST', body }),
+  activeMock: () => request('/api/mocks/active'),
+  getMock: (id) => request(`/api/mocks/${encodeURIComponent(id)}`),
+  answerMock: (id, body) => request(`/api/mocks/${encodeURIComponent(id)}/answer`, { method: 'POST', body }),
+  finishMock: (id) => request(`/api/mocks/${encodeURIComponent(id)}/finish`, { method: 'POST', body: {} }),
+  notes: () => request('/api/notes'),
+  sessionEnd: ({ context, outcomes } = {}) =>
+    request('/api/sessions/end', { method: 'POST', body: { context, outcomes } }),
+  counselNext: () => request('/api/counsel/next'),
+  counselChat: (message) => request('/api/counsel/chat', { method: 'POST', body: { message } }),
+  records: () => request('/api/records'),
+
   /**
    * Streaming tutor call. `onChunk` receives partial text as it arrives.
-   * Resolves with the complete reply.
+   * Resolves with the clean reply and an optional validated visualization.
    */
   async askTutor({ message, context, mode }, onChunk) {
     const res = await fetch('/api/tutor/ask', {
@@ -72,6 +113,7 @@ export const api = {
     const decoder = new TextDecoder();
     let buffer = '';
     let reply = '';
+    let visualization = null;
 
     while (true) {
       const { value, done } = await reader.read();
@@ -88,9 +130,12 @@ export const api = {
         const event = eventLine ? eventLine[1].trim() : 'chunk';
         if (event === 'chunk') { reply += payload.text; onChunk && onChunk(payload.text, reply); }
         else if (event === 'error') throw new Error(payload.error);
-        else if (event === 'done') reply = payload.reply || reply;
+        else if (event === 'done') {
+          reply = payload.reply || reply;
+          visualization = payload.visualization || null;
+        }
       }
     }
-    return reply;
+    return { reply, visualization };
   }
 };

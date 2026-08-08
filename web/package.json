@@ -7,7 +7,9 @@
     "start": "node server.js",
     "verify": "node tools/verify-bank.js",
     "smoke": "node tools/smoke.js",
-    "check": "node tools/smoke.js && node tools/verify-bank.js"
+    "test": "node tools/test-analytics.js && node tools/test-visualization.js",
+    "e2e": "playwright test",
+    "check": "node tools/test-analytics.js && node tools/test-visualization.js && node tools/test-security.js && node tools/smoke.js && playwright test && node tools/verify-bank.js"
   },
   "engines": {
     "node": ">=18"
@@ -15,5 +17,9 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.62.1"
   }
 }

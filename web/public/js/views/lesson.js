@@ -10,6 +10,7 @@ import { TutorPanel } from '../tutor-panel.js';
 import { state } from '../state.js';
 
 import { makeResizable } from '../splitter.js';
+import { track, setTrackContext, startFocus, endSession } from '../track.js';
 
 export async function render(root, route) {
   const lessonId = route.parts.slice(1).join('/');
@@ -40,6 +41,9 @@ class LessonView {
 
   mount() {
     const lesson = this.lesson;
+    setTrackContext({ lessonId: lesson.id, chapterId: lesson.chapterId });
+    track('open_lesson', { lessonId: lesson.id });
+    startFocus();
 
     this.completeBtn = h('button', {
       class: `btn btn-sm ${this.completed ? '' : 'btn-primary'}`,
@@ -121,6 +125,66 @@ class LessonView {
         h('ul', { class: 'objectives mt-s' }, ...lesson.chapter.objectives.map((objective) => h('li', {}, objective)))));
     }
 
+    const active = lesson.activeLearning;
+    if (active && active.prerequisites.length) {
+      nodes.push(h('div', { class: 'section-title mt' }, 'Prerequisite check'));
+      nodes.push(h('div', { class: 'grid' }, ...active.prerequisites.map((item) => h('div', {
+        class: 'card card-hover',
+        onClick: () => { location.hash = `#/learn/${item.id}`; }
+      }, h('strong', {}, `${item.complete ? '✓' : '○'} ${item.title}`),
+      h('div', { class: 'dim' }, `${item.progress.done}/${item.progress.total} lessons complete`)))));
+    }
+
+    if (active && active.misconceptions.length) {
+      nodes.push(h('div', { class: 'section-title mt' }, 'Common traps'));
+      nodes.push(h('div', { class: 'prereq' }, ...active.misconceptions.map((text) => h('p', {}, `⚠ ${text}`))));
+    }
+
+    if (active && active.checkpoints.length) {
+      nodes.push(h('div', { class: 'section-title mt' }, 'Retrieval checkpoints'));
+      for (const checkpoint of active.checkpoints) {
+        const saved = Object.values(active.progress || {}).find((row) => row.checkpointId === checkpoint.id);
+        const feedback = h('p', { class: 'dim mt-s' }, saved && saved.correct ? 'Previously answered correctly.' : 'Choose without looking back at the code.');
+        nodes.push(h('div', { class: 'card mt-s' },
+          h('strong', {}, checkpoint.prompt),
+          h('div', { class: 'grid mt-s' }, ...checkpoint.choices.map((choice, answerIndex) => h('button', {
+            class: 'btn btn-sm',
+            onClick: async (event) => {
+              const button = event.currentTarget;
+              try {
+                const result = await api.answerCheckpoint(lesson.id, checkpoint.id, answerIndex);
+                button.className = `btn btn-sm ${result.correct ? 'btn-primary' : ''}`;
+                feedback.textContent = `${result.correct ? 'Correct.' : 'Not yet.'} ${result.explanation}`;
+              } catch (err) {
+                toast(err.message, 'error');
+              }
+            }
+          }, choice))), feedback));
+      }
+    }
+
+    if (active) {
+      const existing = Object.values(active.progress || {}).find((row) => row.checkpointId === 'reflection');
+      const reflection = h('textarea', {
+        class: 'input',
+        rows: 3,
+        placeholder: active.reflectionPrompt,
+        value: existing ? existing.text : ''
+      });
+      nodes.push(h('div', { class: 'section-title mt' }, 'Post-lesson reflection'));
+      nodes.push(h('div', { class: 'card' }, reflection, h('button', {
+        class: 'btn btn-sm mt-s',
+        onClick: async () => {
+          try {
+            await api.saveReflection(lesson.id, reflection.value);
+            toast('Reflection saved as learning evidence.', 'success');
+          } catch (err) {
+            toast(err.message, 'error');
+          }
+        }
+      }, 'Save reflection')));
+    }
+
     if (lesson.practice && lesson.practice.length) {
       nodes.push(h('div', { class: 'section-title mt' }, 'Questions that use this'));
       nodes.push(h('div', { class: 'q-table' },
@@ -186,6 +250,7 @@ class LessonView {
   async run() {
     this.runBtn.disabled = true;
     this.resultsEl.classList.remove('collapsed');
+    setTimeout(() => this.editor.scrollToCursor(), 50);
     this.resultsHead.replaceChildren(h('span', { class: 'verdict pending' }, 'Compiling…'));
     this.resultsBody.replaceChildren(h('div', { class: 'empty' }, h('span', { class: 'spinner' }), ' Running Java…'));
 
@@ -225,6 +290,8 @@ class LessonView {
     this.completeBtn.textContent = 'Completed ✓';
     this.completeBtn.classList.remove('btn-primary');
     toast(`“${this.lesson.title}” marked complete.`, 'success');
+    track('complete_lesson', { lessonId: this.lesson.id });
+    endSession({ status: 'lesson_complete', lessonId: this.lesson.id }).catch(() => {});
     if (this.lesson.next) {
       toast(`Up next: ${this.lesson.next.title}`, 'info', 4000);
     }
