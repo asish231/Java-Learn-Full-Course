@@ -632,34 +632,38 @@ html[data-theme='light'] .tk-operator { color: #be185d; }
 .msg-mode { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-3); margin-bottom: 5px; }
 
 /* Safe tutor algorithm traces. All state is rendered as text/SVG, never HTML. */
-.algorithm-viz { margin-top: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-1); }
-.viz-head { display: flex; justify-content: space-between; gap: 12px; padding: 9px 11px; border-bottom: 1px solid var(--line-soft); }
-.viz-stage { min-height: 150px; max-width: 100%; padding: 14px; overflow: auto; display: grid; place-items: center; background: var(--bg); }
-.viz-description { padding: 9px 11px; min-height: 38px; border-top: 1px solid var(--line-soft); color: var(--text-2); }
-.viz-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 9px; border-top: 1px solid var(--line-soft); }
+.algorithm-viz { margin-top: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-1); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.viz-head { display: flex; justify-content: space-between; gap: 12px; padding: 9px 11px; border-bottom: 1px solid var(--line-soft); background: var(--bg-2); }
+.viz-stage { min-height: 150px; max-width: 100%; padding: 16px; overflow: auto; display: grid; place-items: center; background: var(--bg); transition: all .2s; }
+.viz-description { padding: 9px 11px; min-height: 38px; border-top: 1px solid var(--line-soft); color: var(--text-2); font-size: 12.5px; font-weight: 500; background: var(--bg-1); }
+.viz-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 9px; border-top: 1px solid var(--line-soft); background: var(--bg-2); }
 .viz-speed { display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 11px; color: var(--text-3); }
 .viz-speed input { width: 82px; accent-color: var(--accent); }
-.viz-array { display: flex; align-items: flex-end; gap: 5px; min-width: max-content; padding-top: 30px; }
-.viz-array-col { text-align: center; min-width: 42px; }
-.viz-pointers { min-height: 27px; display: flex; justify-content: center; gap: 3px; }
-.viz-pointer { color: var(--accent); font-family: var(--mono); font-weight: 700; font-size: 11px; }
-.viz-cell, .viz-item { min-width: 40px; min-height: 38px; padding: 8px; display: grid; place-items: center; border: 1px solid var(--line); background: var(--bg-2); font-family: var(--mono); }
-.viz-array-col.active .viz-cell, .viz-cell.active, .viz-item.active { border-color: var(--accent); background: var(--accent-soft); }
-.viz-index { margin-top: 4px; color: var(--text-3); font-family: var(--mono); font-size: 10px; }
-.viz-collection { width: min(280px, 100%); }
-.viz-action { margin-bottom: 8px; color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
-.viz-items { display: flex; flex-direction: column-reverse; gap: 4px; }
+.viz-array { display: flex; align-items: flex-end; gap: 6px; min-width: max-content; padding-top: 32px; }
+.viz-array-col { text-align: center; min-width: 44px; position: relative; }
+.viz-pointers { min-height: 28px; display: flex; flex-direction: column; align-items: center; gap: 2px; position: absolute; bottom: 100%; left: 0; right: 0; margin-bottom: 4px; }
+.viz-pointer { font-family: var(--mono); font-weight: 700; font-size: 11.5px; padding: 1px 5px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+.viz-pointer.i, .viz-pointer.slow, .viz-pointer.left, .viz-pointer.low { background: rgba(59, 130, 246, .2); color: #60a5fa; border-color: #3b82f6; }
+.viz-pointer.j, .viz-pointer.fast, .viz-pointer.right, .viz-pointer.high { background: rgba(245, 158, 11, .2); color: #fbbf24; border-color: #f59e0b; }
+.viz-pointer.k, .viz-pointer.mid { background: rgba(168, 85, 247, .2); color: #c084fc; border-color: #a855f7; }
+.viz-cell, .viz-item { min-width: 42px; min-height: 40px; padding: 8px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-2); font-family: var(--mono); font-weight: 600; font-size: 13px; transition: all .15s; }
+.viz-array-col.active .viz-cell, .viz-cell.active, .viz-item.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); box-shadow: 0 0 10px var(--accent-soft); }
+.viz-index { margin-top: 6px; color: var(--text-3); font-family: var(--mono); font-size: 11px; }
+.viz-collection { width: min(300px, 100%); }
+.viz-action { margin-bottom: 8px; color: var(--accent); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.viz-items { display: flex; flex-direction: column-reverse; gap: 6px; }
 .viz-collection.queue .viz-items { flex-direction: row; overflow: auto; }
-.viz-matrix { display: grid; gap: 3px; min-width: max-content; }
-.viz-matrix-row { display: flex; gap: 3px; }
-.viz-svg { width: 100%; min-width: 300px; max-height: 310px; }
-.viz-edge { stroke: var(--text-3); stroke-width: 2; }
-.viz-arrow-head { fill: var(--text-3); }
-.viz-node circle { fill: var(--bg-2); stroke: var(--line); stroke-width: 2; }
-.viz-node text { fill: var(--text); font: 12px var(--mono); }
-.viz-node .viz-node-label { fill: var(--text-3); font-size: 10px; }
-.viz-node.active circle { fill: var(--accent-soft); stroke: var(--accent); }
-.viz-node.visited circle { stroke: var(--green); }
+.viz-matrix { display: grid; gap: 4px; min-width: max-content; }
+.viz-matrix-row { display: flex; gap: 4px; }
+.viz-svg { width: 100%; min-width: 300px; max-height: 320px; }
+.viz-edge { stroke: var(--line); stroke-width: 2.5; stroke-dasharray: none; transition: all .2s; }
+.viz-edge.active { stroke: var(--accent); stroke-width: 3; }
+.viz-arrow-head { fill: var(--line); }
+.viz-node circle { fill: var(--bg-2); stroke: var(--line); stroke-width: 2.5; transition: all .2s; }
+.viz-node text { fill: var(--text); font: 12.5px var(--mono); font-weight: 600; }
+.viz-node .viz-node-label { fill: var(--text-3); font-size: 10.5px; font-family: var(--sans); }
+.viz-node.active circle { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 3; filter: drop-shadow(0 0 6px var(--accent)); }
+.viz-node.visited circle { fill: rgba(34, 197, 94, .15); stroke: var(--green); stroke-width: 2.5; }
 
 .tutor-input { flex: 0 0 auto; border-top: 1px solid var(--line); padding: 10px 12px; display: flex; gap: 8px; align-items: flex-end; }
 .tutor-input textarea {

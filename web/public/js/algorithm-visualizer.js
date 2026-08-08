@@ -27,7 +27,10 @@ function arraysView(state) {
   const active = new Set(state.active || []);
   return h('div', { class: 'viz-array', role: 'img', 'aria-label': 'Array and pointer state' },
     ...(state.values || []).map((value, index) => h('div', { class: `viz-array-col${active.has(index) ? ' active' : ''}` },
-      h('div', { class: 'viz-pointers' }, ...(pointers.get(index) || []).map((pointer) => h('span', { class: 'viz-pointer' }, `${pointer.label || '•'} ↓`))),
+      h('div', { class: 'viz-pointers' }, ...(pointers.get(index) || []).map((pointer) => {
+        const key = String(pointer.label || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+        return h('span', { class: `viz-pointer ${key}` }, `${pointer.label || '•'} ↓`);
+      })),
       h('div', { class: 'viz-cell' }, valueText(value)),
       h('div', { class: 'viz-index' }, index))));
 }
@@ -58,30 +61,44 @@ function matrixView(state) {
 
 function graphView(state, label = 'Node diagram') {
   const nodes = state.nodes || [];
-  const active = new Set(state.active || []);
-  const visited = new Set(state.visited || []);
+  const active = new Set((state.active || []).map((x) => String(x)));
+  const visited = new Set((state.visited || []).map((x) => String(x)));
   const width = Math.max(320, Math.min(720, nodes.length * 92));
-  const positions = new Map(nodes.map((node, index) => {
-    const columns = Math.max(1, Math.ceil(Math.sqrt(nodes.length)));
-    return [node.id, {
-      x: 55 + (index % columns) * ((width - 110) / Math.max(1, columns - 1)),
-      y: 48 + Math.floor(index / columns) * 92
-    }];
-  }));
-  const height = Math.max(150, 100 + Math.ceil(nodes.length / Math.max(1, Math.ceil(Math.sqrt(nodes.length)))) * 92);
+  const columns = Math.max(1, Math.ceil(Math.sqrt(nodes.length)));
+  const positions = new Map();
+
+  nodes.forEach((node, index) => {
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+    const xStep = columns > 1 ? (width - 110) / (columns - 1) : 0;
+    const pos = {
+      x: columns > 1 ? 55 + col * xStep : width / 2,
+      y: 48 + row * 92
+    };
+    positions.set(String(node.id), pos);
+    if (node.id != null) positions.set(node.id, pos);
+  });
+
+  const height = Math.max(150, 100 + Math.ceil(nodes.length / columns) * 92);
   const marker = svg('marker', { id: `viz-arrow-${Math.random().toString(36).slice(2)}`, markerWidth: 8, markerHeight: 8, refX: 7, refY: 4, orient: 'auto' },
     svg('path', { d: 'M0,0 L8,4 L0,8 z', class: 'viz-arrow-head' }));
   const markerId = marker.id;
   const canvas = svg('svg', { viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': label, class: 'viz-svg' }, svg('defs', {}, marker));
+  
   for (const edge of state.edges || []) {
-    const from = positions.get(edge.from);
-    const to = positions.get(edge.to);
+    const from = positions.get(String(edge.from)) || positions.get(edge.from);
+    const to = positions.get(String(edge.to)) || positions.get(edge.to);
     if (!from || !to) continue;
     canvas.append(svg('line', { x1: from.x, y1: from.y, x2: to.x, y2: to.y, class: `viz-edge ${edge.status || ''}`, 'marker-end': `url(#${markerId})` }));
   }
+
   for (const node of nodes) {
-    const position = positions.get(node.id);
-    const group = svg('g', { class: `viz-node${active.has(node.id) ? ' active' : ''}${visited.has(node.id) ? ' visited' : ''}` },
+    const position = positions.get(String(node.id)) || positions.get(node.id);
+    if (!position) continue;
+    const nodeIdStr = String(node.id);
+    const isAct = active.has(nodeIdStr) || (node.status && node.status.includes('active'));
+    const isVis = visited.has(nodeIdStr) || (node.status && node.status.includes('visited'));
+    const group = svg('g', { class: `viz-node${isAct ? ' active' : ''}${isVis ? ' visited' : ''}` },
       svg('circle', { cx: position.x, cy: position.y, r: 25 }),
       svg('text', { x: position.x, y: position.y + 4, 'text-anchor': 'middle' }, valueText(node.value)),
       node.label ? svg('text', { x: position.x, y: position.y + 42, 'text-anchor': 'middle', class: 'viz-node-label' }, node.label) : null);

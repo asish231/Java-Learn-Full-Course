@@ -113,7 +113,14 @@ export class TutorPanel {
   appendMessage(role, content, mode, visualization = null) {
     const node = h('div', { class: `msg ${role}` });
     if (mode && mode !== 'chat' && role === 'ai') node.append(h('div', { class: 'msg-mode' }, mode));
-    const body = h('div', { class: 'prose', html: markdown(content) });
+    
+    let cleanContent = content;
+    if (role === 'ai' && typeof content === 'string') {
+      cleanContent = content.replace(/```(?:dsa-visualization|json|visualization)?\s*\n?\{\s*"(?:version|category|title|steps)"[\s\S]*?```/gi, '').trim();
+      cleanContent = cleanContent.replace(/\{\s*"(?:version|category)"[\s\S]*?\}\s*$/i, '').trim();
+    }
+
+    const body = h('div', { class: 'prose', html: markdown(cleanContent) });
     node.append(body);
     if (role === 'ai' && visualization) {
       const visualizer = new AlgorithmVisualizer({
@@ -152,7 +159,8 @@ export class TutorPanel {
       let streamed = '';
       const result = await api.askTutor({ message, context: this.contextForRequest(), mode }, (_chunk, full) => {
         streamed = full;
-        placeholder.body.innerHTML = markdown(full.replace(/```dsa-visualization[\s\S]*$/i, '').trim() || '_building visualization…_');
+        const cleaned = full.replace(/```(?:dsa-visualization|json|visualization)?\s*\n?\{\s*"(?:version|category|title|steps)"[\s\S]*$/i, '').trim();
+        placeholder.body.innerHTML = markdown(cleaned || '_building visualization…_');
         this.scrollDown();
       });
       placeholder.body.innerHTML = markdown(result.reply || '_(no answer)_');
