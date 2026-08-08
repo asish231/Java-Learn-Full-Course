@@ -8,6 +8,7 @@ import { api } from '../api.js';
 import { CodeEditor } from '../editor.js';
 import { TutorPanel } from '../tutor-panel.js';
 import { state } from '../state.js';
+import { icon } from '../icons.js';
 
 import { makeResizable } from '../splitter.js';
 import { track, setTrackContext, startFocus, endSession } from '../track.js';
@@ -58,7 +59,7 @@ class LessonView {
         lesson.prev ? h('button', { class: 'btn btn-ghost btn-sm', title: lesson.prev.title, onClick: () => { location.hash = `#/lesson/${lesson.prev.id}`; } }, '← Prev') : null,
         lesson.next ? h('button', { class: 'btn btn-ghost btn-sm', title: lesson.next.title, onClick: () => { location.hash = `#/lesson/${lesson.next.id}`; } }, 'Next →') : null,
         this.completeBtn,
-        h('button', { class: 'btn btn-ghost btn-sm', onClick: () => this.toggleTutor() }, '🤖 Tutor')
+        h('button', { class: 'btn btn-ghost btn-sm', onClick: () => this.toggleTutor() }, icon('tutor', { size: 15 }), ' AI Tutor')
       ].filter(Boolean)
     }), this.body);
 
@@ -271,7 +272,7 @@ class LessonView {
         !ok ? h('button', {
           class: 'btn btn-sm mt-s',
           onClick: () => { if (!this.tutorOpen) this.toggleTutor(); this.tutor.send('This lesson file failed to run — what does the error mean?', 'chat'); }
-        }, '🤖 Ask the tutor about this error') : null,
+        }, icon('tutor', { size: 14 }), ' Ask tutor about this error') : null,
         ok && !this.completed ? h('div', { class: 'row mt-s' },
           h('span', { class: 'muted' }, 'Ran cleanly — got it?'),
           h('button', { class: 'btn btn-sm btn-success', onClick: () => this.markComplete() }, 'Mark complete')) : null);

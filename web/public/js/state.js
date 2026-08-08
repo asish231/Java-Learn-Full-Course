@@ -1,6 +1,9 @@
 /** Shared client state + a tiny hash router. */
 import { api } from './api.js';
 
+let savedTheme = 'dark';
+try { savedTheme = localStorage.getItem('studio.theme') || 'dark'; } catch (_) {}
+
 export const state = {
   boot: null,          // /api/bootstrap payload
   profile: null,
@@ -8,7 +11,7 @@ export const state = {
   stats: {},
   summary: {},
   tutorReady: false,
-  theme: localStorage.getItem('studio.theme') || 'dark'
+  theme: savedTheme
 };
 
 export async function loadBootstrap() {
@@ -32,7 +35,7 @@ export async function refreshSummary() {
 export function applyTheme(theme) {
   state.theme = theme;
   document.documentElement.dataset.theme = theme;
-  localStorage.setItem('studio.theme', theme);
+  try { localStorage.setItem('studio.theme', theme); } catch (_) {}
 }
 
 // ---------------------------------------------------------------------------

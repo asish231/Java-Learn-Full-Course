@@ -870,7 +870,7 @@ function clearChat(contextKey) {
 
 function resetAll() {
   state = structuredClone(EMPTY);
-  persist();
+  flush();
   return state;
 }
 

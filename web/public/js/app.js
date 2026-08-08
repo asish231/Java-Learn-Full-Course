@@ -8,16 +8,17 @@ import { h, toast, esc } from './util.js';
 import { api } from './api.js';
 import { state, loadBootstrap, applyTheme, onRoute, navigate, parseRoute } from './state.js';
 import { startFocus, track } from './track.js';
+import { icon, iconHTML } from './icons.js';
 
 const NAV = [
-  { id: 'home', icon: '🏠', label: 'Home', hash: '#/' },
-  { id: 'learn', icon: '📚', label: 'Learn', hash: '#/learn' },
-  { id: 'practice', icon: '⚔️', label: 'Practice', hash: '#/practice' },
-  { id: 'insights', icon: '🧠', label: 'Insights', hash: '#/insights' },
-  { id: 'mock', icon: '⏱️', label: 'Mock', hash: '#/mock' },
-  { id: 'career', icon: '🧭', label: 'Career', hash: '#/career' },
-  { id: 'placement', icon: '💼', label: 'Placement', hash: '#/placement' },
-  { id: 'progress', icon: '📈', label: 'Progress', hash: '#/progress' }
+  { id: 'home', iconName: 'home', label: 'Home', hash: '#/' },
+  { id: 'learn', iconName: 'learn', label: 'Learn', hash: '#/learn' },
+  { id: 'practice', iconName: 'practice', label: 'Practice', hash: '#/practice' },
+  { id: 'insights', iconName: 'insights', label: 'Insights', hash: '#/insights' },
+  { id: 'mock', iconName: 'mock', label: 'Mock', hash: '#/mock' },
+  { id: 'career', iconName: 'career', label: 'Career', hash: '#/career' },
+  { id: 'placement', iconName: 'placement', label: 'Placement', hash: '#/placement' },
+  { id: 'progress', iconName: 'progress', label: 'Progress', hash: '#/progress' }
 ];
 
 const VIEWS = {
@@ -47,7 +48,7 @@ let railEl;
   try {
     await loadBootstrap();
   } catch (err) {
-    appEl.innerHTML = `<div class="empty">⚠️ Could not reach the server: ${esc(err.message)}<br><br>Start it with <code>npm start</code> in the <code>web</code> folder.</div>`;
+    appEl.innerHTML = `<div class="empty">${iconHTML('warning', { size: 20 })} Could not reach the server: ${esc(err.message)}<br><br>Start it with <code>npm start</code> in the <code>web</code> folder.</div>`;
     return;
   }
 
@@ -56,7 +57,7 @@ let railEl;
   startFocus();
   track('app_open', {});
 
-  if (!state.profile.onboardedAt) startOnboarding();
+  if (!state.profile || !state.profile.onboardedAt) startOnboarding();
 
   onRoute(renderRoute);
 })();
@@ -67,24 +68,24 @@ let railEl;
 
 function renderShell() {
   railEl = h('nav', { class: 'rail', 'aria-label': 'Primary navigation' },
-    h('div', { class: 'rail-logo', title: 'Java DSA Studio' }, '☕'),
+    h('div', { class: 'rail-logo', title: 'Java DSA Studio' }, icon('logo', { size: 26 })),
     ...NAV.map((item) => h('button', {
       class: 'rail-btn', dataset: { nav: item.id },
       onClick: () => { location.hash = item.hash; }
-    }, item.icon, h('span', { class: 'rail-label' }, item.label))),
+    }, icon(item.iconName, { size: 18 }), h('span', { class: 'rail-label' }, item.label))),
     h('div', { class: 'rail-spacer' }),
     h('button', {
       class: 'rail-btn', title: 'Search (⌘K)',
       onClick: () => openPalette()
-    }, '🔍', h('span', { class: 'rail-label' }, 'Search  ⌘K')),
+    }, icon('search', { size: 18 }), h('span', { class: 'rail-label' }, 'Search ⌘K')),
     h('button', {
       class: 'rail-btn', title: 'Toggle theme',
       onClick: () => applyTheme(state.theme === 'dark' ? 'light' : 'dark')
-    }, '◐', h('span', { class: 'rail-label' }, 'Theme')),
+    }, icon('theme', { size: 18 }), h('span', { class: 'rail-label' }, 'Theme')),
     h('button', {
       class: 'rail-btn', title: 'Preferences',
       onClick: () => startOnboarding(true)
-    }, '⚙️', h('span', { class: 'rail-label' }, 'Preferences'))
+    }, icon('gear', { size: 18 }), h('span', { class: 'rail-label' }, 'Preferences'))
   );
 
   mainEl = h('main', { class: 'main', id: 'main-content', tabindex: '-1' });
@@ -146,12 +147,13 @@ const MINUTES = [
 
 function startOnboarding(isSettings = false) {
   const host = document.getElementById('onboarding');
+  const p = state.profile || {};
   const draft = {
-    name: state.profile.name || '',
-    goal: state.profile.goal,
-    level: state.profile.level,
-    dailyMinutes: state.profile.dailyMinutes || 30,
-    pathId: state.profile.pathId
+    name: p.name || '',
+    goal: p.goal,
+    level: p.level,
+    dailyMinutes: p.dailyMinutes || 30,
+    pathId: p.pathId
   };
   let step = 0;
 

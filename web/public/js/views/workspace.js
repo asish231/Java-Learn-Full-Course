@@ -11,6 +11,7 @@ import { CodeEditor } from '../editor.js';
 import { TutorPanel } from '../tutor-panel.js';
 import { state, refreshSummary, navigate } from '../state.js';
 import { track, setTrackContext, startFocus, endSession } from '../track.js';
+import { icon } from '../icons.js';
 
 import { makeResizable } from '../splitter.js';
 
@@ -61,7 +62,7 @@ class Workspace {
       q.leetcodeUrl ? h('a', { class: 'btn btn-ghost btn-sm', href: q.leetcodeUrl, target: '_blank', rel: 'noopener' }, 'LeetCode ↗') : null
     ];
     if (!this.examMode) {
-      actions.push(h('button', { class: 'btn btn-ghost btn-sm', onClick: () => this.toggleTutor() }, '🤖 Tutor'));
+      actions.push(h('button', { class: 'btn btn-ghost btn-sm', onClick: () => this.toggleTutor() }, icon('tutor', { size: 15 }), ' AI Tutor'));
     } else {
       actions.push(h('span', { class: 'dim' }, 'Exam mode'));
       if (this.mockId) {
@@ -252,7 +253,7 @@ class Workspace {
     nodes.push(h('button', {
       class: 'btn btn-primary mt',
       onClick: () => { this.tutor.send('', 'prep'); }
-    }, '🤖 Ask the tutor to turn this into a step-by-step plan'));
+    }, icon('tutor', { size: 15 }), ' Ask tutor for step-by-step plan'));
 
     this.tabBody.replaceChildren(...nodes);
   }
@@ -336,7 +337,7 @@ class Workspace {
         class: 'btn btn-primary mt',
         style: { marginLeft: '8px' },
         onClick: () => this.tutor.send('Compare my code with the reference solution and tell me what I should have seen.', 'chat')
-      }, '🤖 Compare with my code'));
+      }, icon('tutor', { size: 15 }), ' Compare with my code'));
   }
 
   // =========================================================================
@@ -506,12 +507,12 @@ class Workspace {
   }
 
   async onSolved() {
-    toast(`Solved #${this.question.number} ${this.question.title} 🎉`, 'success', 4200);
+    toast(`Solved #${this.question.number} ${this.question.title}`, 'success', 4200);
     this.question.progress = { ...(this.question.progress || {}), status: 'solved' };
     await refreshSummary().catch(() => {});
     this.resultsBody.append(h('div', { class: 'row mt-s wrap' },
-      h('button', { class: 'btn btn-sm', onClick: () => { this.tab = 'editorial'; this.renderProblemPane(); } }, 'Read the editorial'),
-      h('button', { class: 'btn btn-sm', onClick: () => this.tutor.send('', 'debrief') }, '🤖 Debrief me'),
-      h('button', { class: 'btn btn-sm', onClick: () => navigate('#/practice') }, 'Next question')));
+      h('button', { class: 'btn btn-sm', onClick: () => { this.tab = 'editorial'; this.renderProblemPane(); } }, icon('book', { size: 14 }), ' Read the editorial'),
+      h('button', { class: 'btn btn-sm', onClick: () => this.tutor.send('', 'debrief') }, icon('tutor', { size: 14 }), ' Debrief me'),
+      h('button', { class: 'btn btn-sm', onClick: () => navigate('#/practice') }, 'Next question →')));
   }
 }

@@ -1,8 +1,13 @@
 const { defineConfig, devices } = require('@playwright/test');
+const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
 const storeFile = path.join(os.tmpdir(), 'java-dsa-studio-e2e-state.json');
+try {
+  fs.rmSync(storeFile, { force: true });
+  fs.rmSync(`${storeFile}.backups`, { recursive: true, force: true });
+} catch (_) {}
 
 module.exports = defineConfig({
   testDir: './tests/e2e',

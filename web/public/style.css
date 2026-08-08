@@ -110,9 +110,51 @@ a:hover { text-decoration: underline; }
   width: 38px; height: 38px;
   display: grid; place-items: center;
   border-radius: 11px;
-  background: linear-gradient(135deg, var(--accent), var(--violet));
-  font-size: 19px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(124, 58, 237, 0.15));
+  border: 1px solid var(--line);
   margin-bottom: 14px;
+}
+
+.icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+img.icon {
+  object-fit: contain;
+}
+
+.btn svg, .chip svg, .rail-btn svg {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tutor-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tutor-avatar-icon {
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 6px;
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.2);
 }
 
 .rail-btn {

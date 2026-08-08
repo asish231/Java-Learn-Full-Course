@@ -8,6 +8,7 @@
 import { h, markdown, toast } from './util.js';
 import { api } from './api.js';
 import { AlgorithmVisualizer } from './algorithm-visualizer.js';
+import { icon } from './icons.js';
 
 const QUICK_ACTIONS = [
   { mode: 'explain', label: 'Explain', title: 'Restate the problem in plain language' },
@@ -38,7 +39,7 @@ export class TutorPanel {
       placeholder: ready ? 'Ask anything about this problem…' : 'Tutor disabled — add MERCURY_API_KEY to web/.env',
       rows: '1', disabled: !ready
     });
-    this.sendBtn = h('button', { class: 'btn btn-primary btn-sm', disabled: !ready, onClick: () => this.send() }, 'Ask');
+    this.sendBtn = h('button', { class: 'btn btn-primary btn-sm', disabled: !ready, onClick: () => this.send() }, icon('bot', { size: 14 }), ' Ask');
 
     this.inputEl.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); this.send(); }
@@ -53,16 +54,17 @@ export class TutorPanel {
         h('button', {
           class: 'chip chip-btn', title: action.title, disabled: !ready,
           onClick: () => this.send('', action.mode)
-        }, action.label)),
+        }, action.mode === 'visualize' ? icon('eye', { size: 13 }) : (action.mode === 'hint' ? icon('hint', { size: 13 }) : null), ' ', action.label)),
       h('button', {
         class: 'chip chip-btn', title: 'Clear this conversation',
         onClick: () => this.clear()
-      }, '↺')
+      }, icon('reset', { size: 13 }), ' Clear')
     );
 
     this.el = h('aside', { class: 'tutor' },
       h('div', { class: 'tutor-head' },
         this.dot,
+        icon('bot', { size: 18, class: 'tutor-avatar-icon' }),
         h('div', {},
           h('div', { style: { fontWeight: '600', fontSize: '13.5px' } }, 'Mercury · AI tutor'),
           h('div', { class: 'dim' }, ready ? (subtitle || 'Knows this problem, your code and your history') : 'Not configured')),

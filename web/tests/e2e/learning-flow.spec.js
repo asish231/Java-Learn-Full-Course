@@ -15,10 +15,11 @@ test.beforeAll(async ({ request }) => {
   await request.post('/api/progress/reset');
 });
 
-test('onboarding creates a real learning path', async ({ page }) => {
+test('onboarding creates a real learning path', async ({ page, request }) => {
+  await request.post('/api/progress/reset');
   await page.goto('/#/');
   const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible();
+  await expect(dialog).toBeVisible({ timeout: 10000 });
   await dialog.getByRole('button', { name: /Crack interviews/ }).click();
   await dialog.getByRole('button', { name: /Continue/ }).click();
   await dialog.getByRole('button', { name: /New to Java/ }).click();

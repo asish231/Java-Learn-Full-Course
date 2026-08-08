@@ -1,10 +1,10 @@
-/** Shared chrome used by every view: page header, scroll body, small widgets. */
 import { h } from './util.js';
+import { icon } from './icons.js';
 
 /** Sticky page header. `back` is a hash route string. */
 export function pageHeader({ title, crumb, back, actions = [] } = {}) {
   return h('header', { class: 'topbar' },
-    back ? h('button', { class: 'btn btn-ghost btn-sm', 'aria-label': 'Go back', onClick: () => { location.hash = back; } }, '←') : null,
+    back ? h('button', { class: 'btn btn-ghost btn-sm', 'aria-label': 'Go back', onClick: () => { location.hash = back; } }, icon('back', { size: 16 })) : null,
     h('h1', {}, title || ''),
     crumb ? h('span', { class: 'crumb' }, crumb) : null,
     h('div', { class: 'spacer' }),
@@ -39,10 +39,10 @@ export function loading(text = 'Loading…') {
 }
 
 export function errorBox(message) {
-  return h('div', { class: 'empty', role: 'alert' }, `⚠️ ${message}`);
+  return h('div', { class: 'empty', role: 'alert' }, icon('warning', { size: 18 }), ' ', message);
 }
 
 export function statusDot(status) {
-  const icon = status === 'solved' ? '✓' : status === 'attempted' ? '•' : '';
-  return h('div', { class: `q-status ${status || ''}` }, icon);
+  const iconNode = status === 'solved' ? icon('check', { size: 12 }) : status === 'attempted' ? '•' : '';
+  return h('div', { class: `q-status ${status || ''}` }, iconNode);
 }
