@@ -36,8 +36,12 @@ desktop.ini
 
 # Environment files (API keys)
 .env
-.env.local
-.env.*.local
+.env.*
+*.env
+
+# Markdown files (ignore all markdown files except root README.md)
+*.md
+!README.md
 
 # Debug logs
 npm-debug.log*
