@@ -92,8 +92,18 @@ const META = {
   },
   interview_prep: {
     title: 'Interview Prep Beyond DSA',
-    why: 'STAR stories, system-design walkthroughs, resume bullets, and a live-interview playbook.',
+    why: 'STAR stories, system-design walkthroughs (shortener, limiter, feed, chat, cache), resume bullets, and a live-interview playbook.',
     start: 'BehavioralSTAR.java'
+  },
+  cs_fundamentals: {
+    title: 'CS Fundamentals',
+    why: 'Processes, threads, locks, TCP/HTTP, SQL indexes, SOLID, and thread pools — the non-DSA phone screen.',
+    start: 'ProcessesAndThreads.java'
+  },
+  low_level_design: {
+    title: 'Low-Level Design',
+    why: 'Parking lot, expenses, library, pub/sub, LRU — class designs you can run and then redraw on a whiteboard.',
+    start: 'ParkingLot.java'
   }
 };
 

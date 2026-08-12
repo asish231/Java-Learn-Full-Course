@@ -21,7 +21,9 @@ const TRACKS = [
   { id: 'foundations', label: 'Java foundations' },
   { id: 'dsa', label: 'Data structures & algorithms' },
   { id: 'backend', label: 'Backend engineering' },
-  { id: 'career', label: 'Interview prep' }
+  { id: 'career', label: 'Interview prep' },
+  { id: 'cs', label: 'CS fundamentals' },
+  { id: 'lld', label: 'Low-level design' }
 ];
 
 async function renderIndex(root) {

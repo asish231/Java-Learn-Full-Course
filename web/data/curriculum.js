@@ -41,7 +41,12 @@ const TOPICS = {
   'math': { label: 'Math & Number Theory', chapter: 'module01_foundations' },
   'design': { label: 'Data Structure Design', chapter: 'module03_linked_lists' },
   'system-design': { label: 'System Design', chapter: 'interview_prep' },
-  'behavioral': { label: 'Behavioral Interviews', chapter: 'interview_prep' }
+  'behavioral': { label: 'Behavioral Interviews', chapter: 'interview_prep' },
+  'os': { label: 'Operating Systems', chapter: 'cs_fundamentals' },
+  'networking': { label: 'Networking', chapter: 'cs_fundamentals' },
+  'sql': { label: 'SQL & Databases', chapter: 'cs_fundamentals' },
+  'concurrency': { label: 'Concurrency', chapter: 'cs_fundamentals' },
+  'lld': { label: 'Low-Level Design', chapter: 'low_level_design' }
 };
 
 const LEVEL_META = {
@@ -354,17 +359,55 @@ const CHAPTERS = [
     icon: '🎯',
     title: 'Interview Prep Beyond DSA',
     track: 'career',
-    minutes: 120,
-    summary: 'STAR stories, system-design walkthroughs, resume bullets, and a live-coding playbook — the rounds that are not a LeetCode submit.',
+    minutes: 150,
+    summary: 'STAR stories, system-design walkthroughs (shortener, limiter, feed, chat, cache), resume bullets, and a live-coding playbook.',
     why: 'Offers fail when the coding round is the only thing you practised. Interviewers also grade how you design, how you talk, and whether your projects survive a hiring-manager skim.',
     topics: ['system-design', 'behavioral', 'design'],
     objectives: [
       'Tell five STAR stories in 90 seconds each without reading notes',
-      'Walk a URL shortener and a rate limiter from requirements to trade-offs',
+      'Walk a shortener, rate limiter, news feed, chat, and cache from requirements to trade-offs',
       'Rewrite resume bullets as verb + constraint + measured result',
       'Narrate a live coding round: restate, brute force, tests, then code'
     ],
     prerequisites: ['module02_arrays_and_strings']
+  },
+  {
+    id: 'cs_fundamentals',
+    dir: 'cs_fundamentals',
+    order: 17,
+    icon: '🧠',
+    title: 'CS Fundamentals',
+    track: 'cs',
+    minutes: 150,
+    summary: 'Processes vs threads, locks and deadlock, TCP/HTTP/DNS, SQL indexes and isolation, SOLID, and thread pools — runnable, not flashcards.',
+    why: 'Phone screens and on-sites still ask OS, networks, and databases. Reading a blog is not the same as walking a race and a query plan.',
+    topics: ['os', 'concurrency', 'networking', 'sql', 'design'],
+    objectives: [
+      'Choose process vs thread and name the failure mode of each',
+      'Explain a race, a mutex, and a deadlock wait-for cycle',
+      'Walk DNS → TCP → HTTP and the status codes that change client behaviour',
+      'Say when an index is used, when a function hides it, and what isolation actually guarantees'
+    ],
+    prerequisites: ['quickstart']
+  },
+  {
+    id: 'low_level_design',
+    dir: 'low_level_design',
+    order: 18,
+    icon: '🧩',
+    title: 'Low-Level Design',
+    track: 'lld',
+    minutes: 150,
+    summary: 'Class-level designs you can code: parking lot, expense splitter, library, pub/sub, LRU — objects, invariants, and a running demo.',
+    why: 'LLD rounds grade whether you can name types, ownership, and edge cases before you type. Each file here is a complete miniature you can redraw on a whiteboard.',
+    topics: ['lld', 'design', 'hash-table'],
+    objectives: [
+      'Split a parking lot into Vehicle, Spot, Ticket, and Lot with a clear owner for occupancy',
+      'Settle group expenses from net balances instead of pairwise IOUs',
+      'Model a library as titles vs copies, with a hold limit on the member',
+      'Fan-out events through pub/sub so publishers never name consumers'
+    ],
+    prerequisites: ['quickstart', 'module05_hashing']
   }
 ];
 
@@ -391,7 +434,8 @@ const PATHS = [
     chapters: [
       'module02_arrays_and_strings', 'module05_hashing', 'module04_stacks_and_queues',
       'module06_trees_and_bst', 'module09_sorting_and_searching',
-      'module13_graph_algorithms', 'module12_dynamic_programming', 'interview_prep'
+      'module13_graph_algorithms', 'module12_dynamic_programming',
+      'cs_fundamentals', 'low_level_design', 'interview_prep'
     ]
   },
   {
@@ -413,7 +457,7 @@ const PATHS = [
     tagline: 'Systems, not just puzzles',
     description: 'Data structures that back real services, then build an HTTP server, REST router, JWT auth and a cache from scratch.',
     weeks: 6,
-    chapters: ['quickstart', 'module05_hashing', 'module03_linked_lists', 'backend_engineering', 'interview_prep']
+    chapters: ['quickstart', 'module05_hashing', 'module03_linked_lists', 'backend_engineering', 'cs_fundamentals', 'low_level_design', 'interview_prep']
   }
 ];
 

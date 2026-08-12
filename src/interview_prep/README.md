@@ -1,6 +1,6 @@
 # Interview Prep Beyond DSA
 
-STAR stories, system-design walkthroughs, resume bullets, and a live-interview playbook.
+STAR stories, system-design walkthroughs (shortener, limiter, feed, chat, cache), resume bullets, and a live-interview playbook.
 
 ## How to study this folder
 
@@ -15,5 +15,8 @@ Start here: [`BehavioralSTAR.java`](./BehavioralSTAR.java)
 - [`BehavioralSTAR.java`](./BehavioralSTAR.java)
 - [`LiveInterviewPlaybook.java`](./LiveInterviewPlaybook.java)
 - [`ResumeAndProjects.java`](./ResumeAndProjects.java)
+- [`SystemDesignCache.java`](./SystemDesignCache.java)
+- [`SystemDesignChat.java`](./SystemDesignChat.java)
+- [`SystemDesignNewsFeed.java`](./SystemDesignNewsFeed.java)
 - [`SystemDesignRateLimiter.java`](./SystemDesignRateLimiter.java)
 - [`SystemDesignUrlShortener.java`](./SystemDesignUrlShortener.java)
