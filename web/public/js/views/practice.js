@@ -2,7 +2,7 @@
  * practice.js — pick what to solve: guided problems (real test cases) first,
  * then any of the company question lists.
  */
-import { h, difficultyClass, debounce, toast } from '../util.js';
+import { h, difficultyClass, debounce, toast, withToast } from '../util.js';
 import { pageHeader, pageBody, loading, errorBox } from '../shell.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
@@ -173,10 +173,9 @@ async function renderCompany(root, slug) {
     actions: [
       h('button', {
         class: 'btn btn-sm',
-        onClick: async () => {
-          state.profile = await api.saveProfile({ targetCompany: slug });
-          toast(`${data.company.name} is now your target company.`, 'success');
-        }
+      onClick: withToast(async () => {
+        state.profile = await api.saveProfile({ targetCompany: slug });
+      }, { success: `${data.company.name} is now your target company.` })
       }, '🎯 Set as my target'),
       textInput
     ]
@@ -215,10 +214,11 @@ async function renderCompany(root, slug) {
       class: `chip chip-btn${period === id ? ' active' : ''}`,
       onClick: async (event) => {
         period = id;
+        const localPeriod = id;
         [...event.currentTarget.parentElement.children].forEach((node) => node.classList && node.classList.remove('active'));
         event.currentTarget.classList.add('active');
         table.replaceChildren(loading('Loading…'));
-        if (await load()) paint();
+        if (await load() && localPeriod === period) paint();
       }
     }, PERIOD_LABELS[id])));
 

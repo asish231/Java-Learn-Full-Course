@@ -2,7 +2,7 @@
  * home.js — the dashboard: pick a path, resume where you stopped, see what to
  * do next. Everything here is one click away from actually learning something.
  */
-import { h, formatMinutes, difficultyClass, toast } from '../util.js';
+import { h, formatMinutes, difficultyClass, toast, withToast } from '../util.js';
 import { pageHeader, pageBody, statCard, progressBar, loading, errorBox } from '../shell.js';
 import { api } from '../api.js';
 import { state, navigate } from '../state.js';
@@ -95,11 +95,10 @@ export async function render(root, _route) {
   nodes.push(h('div', { class: 'grid grid-2' },
     ...(state.boot.paths || []).map((path) => h('div', {
       class: `card card-hover path-card${state.profile.pathId === path.id ? ' active' : ''}`,
-      onClick: async () => {
+      onClick: withToast(async () => {
         state.profile = await api.saveProfile({ pathId: path.id });
-        toast(`Path set to ${path.title} — your dashboard now follows it.`, 'success');
         navigate('#/');
-      }
+      }, { success: (path) => `Path set to ${path.title} — your dashboard now follows it.` })
     },
     h('div', { class: 'row' },
       h('span', { class: 'path-icon' }, path.icon),

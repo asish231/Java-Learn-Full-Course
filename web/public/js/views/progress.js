@@ -2,7 +2,9 @@
  * progress.js — the tracker: streak, activity, per-chapter completion,
  * strong/weak topics and the notes the AI tutor keeps about you.
  */
-import { h, formatMinutes, formatMinutes as fmt, toast } from '../util.js';
+import { h, formatMinutes, toast, withToast } from '../util.js';
+
+const fmt = formatMinutes;
 import { pageHeader, pageBody, statCard, progressBar, loading, errorBox } from '../shell.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
@@ -111,11 +113,11 @@ export async function render(root, route) {
           h('span', { style: { flex: '1' } }, fact.text),
           h('button', {
             title: 'Forget this',
-            onClick: async () => {
+            onClick: withToast(async () => {
               const updated = await api.forget(index);
               paintMemory(updated.facts || []);
-              toast('Forgotten.', 'info');
-            }
+              return 'Forgotten.';
+            }, { success: 'Forgotten.' })
           }, '✕')))
         : [h('div', { class: 'dim' }, 'Nothing yet — the tutor writes notes as you work with it.')]));
   };
@@ -151,7 +153,7 @@ function buildHeatmap(activity = {}) {
   for (let offset = days - 1; offset >= 0; offset--) {
     const date = new Date(today);
     date.setDate(today.getDate() - offset);
-    const key = date.toISOString().slice(0, 10);
+    const key = date.toLocaleDateString('en-CA');
     const entry = activity[key];
     const minutes = entry ? entry.minutes || 0 : 0;
     const level = minutes >= 60 ? 4 : minutes >= 30 ? 3 : minutes >= 15 ? 2 : minutes > 0 ? 1 : 0;
@@ -170,10 +172,14 @@ function buildHeatmap(activity = {}) {
 
 async function resetAll(root, route) {
   if (!confirm('Delete all progress, streaks and tutor memory? This cannot be undone.')) return;
-  await api.resetProgress();
-  toast('Progress cleared.', 'warn');
-  root.replaceChildren();
-  render(root, route);
+  try {
+    await api.resetProgress();
+    toast('Progress cleared.', 'warn');
+    root.replaceChildren();
+    render(root, route);
+  } catch (err) {
+    toast(err.message || 'Reset failed.', 'error', 4000);
+  }
 }
 
 async function exportBackup() {

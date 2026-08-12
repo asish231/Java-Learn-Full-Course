@@ -9,17 +9,20 @@
     "smoke": "node tools/smoke.js",
     "test": "node tools/test-analytics.js && node tools/test-visualization.js",
     "e2e": "playwright test",
-    "check": "node tools/test-analytics.js && node tools/test-visualization.js && node tools/test-security.js && node tools/smoke.js && playwright test && node tools/verify-bank.js"
+    "lint": "eslint server.js lib tools tests public/js",
+    "check": "npm run lint && node tools/test-analytics.js && node tools/test-visualization.js && node tools/test-security.js && node tools/smoke.js && playwright test && node tools/verify-bank.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
-    "cors": "^2.8.5",
     "express": "^4.18.2"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.62.1",
+    "@eslint/js": "^9.9.0",
+    "eslint": "^9.9.0",
+    "globals": "^15.9.0"
   }
 }

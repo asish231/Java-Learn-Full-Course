@@ -15,7 +15,8 @@ Welcome to the **Complete Backend Engineering Master Curriculum**! This guide as
 | 03. Databases & SQL Mastery                    (Tables, Foreign Keys, JOINs, Indexes, ACID)       |
 | 04. Authentication & Security (JWT & BCrypt)   (Sessions, JWT Tokens, Password Hashing, OWASP)   |
 | 05. Caching & Performance Optimization         (Redis, Cache-Aside, LRU Eviction, TTL)            |
-| 06. Message Queues & System Design Basics      (Async queues, Worker Threads, Microservices)      |
++---------------------------------------------------------------------------------------------------+
+| 06. Message Queues & System Design Basics      (Async queues, Worker Threads, Microservices)      |  <- planned, not yet implemented
 +---------------------------------------------------------------------------------------------------+
 ```
 
@@ -112,8 +113,8 @@ Reading from RAM takes ~100 nanoseconds, while reading from a disk database take
 ## 📂 Source Code Implementations
 
 All Java backend tutorial implementations are available in `src/backend_engineering/`:
-- `HTTPClientServer.java`: HTTP Server & Request Parser
-- `RESTAPIRouter.java`: Custom REST Router & Middleware pipeline
+- `HTTPClientServer.java`: HTTP Request/Response message format (hard-coded request, no socket server)
+- `RESTAPIRouter.java`: Custom REST Router & Middleware pipeline (query params only; path params not yet implemented)
 - `DatabaseSQLEngine.java`: In-Memory Relational Database Engine
-- `JWTAuthentication.java`: Password Hashing & JWT Security Engine
+- `JWTAuthentication.java`: Password Hashing & JWT Security Engine using HMAC-SHA256
 - `RedisCacheEngine.java`: In-Memory Redis Cache & LRU Eviction Engine

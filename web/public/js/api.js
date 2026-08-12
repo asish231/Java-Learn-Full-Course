@@ -97,11 +97,12 @@ export const api = {
    * Streaming tutor call. `onChunk` receives partial text as it arrives.
    * Resolves with the clean reply and an optional validated visualization.
    */
-  async askTutor({ message, context, mode }, onChunk) {
+  async askTutor({ message, context, mode }, onChunk, { signal } = {}) {
     const res = await fetch('/api/tutor/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, context, mode, stream: true })
+      body: JSON.stringify({ message, context, mode, stream: true }),
+      signal
     });
 
     if (!res.ok || !res.body) {
@@ -115,26 +116,32 @@ export const api = {
     let reply = '';
     let visualization = null;
 
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
 
-      const frames = buffer.split('\n\n');
-      buffer = frames.pop();
-      for (const frame of frames) {
-        const eventLine = frame.match(/^event:\s*(.+)$/m);
-        const dataLine = frame.match(/^data:\s*([\s\S]+)$/m);
-        if (!dataLine) continue;
-        const payload = JSON.parse(dataLine[1]);
-        const event = eventLine ? eventLine[1].trim() : 'chunk';
-        if (event === 'chunk') { reply += payload.text; onChunk && onChunk(payload.text, reply); }
-        else if (event === 'error') throw new Error(payload.error);
-        else if (event === 'done') {
-          reply = payload.reply || reply;
-          visualization = payload.visualization || null;
+        const frames = buffer.split('\n\n');
+        buffer = frames.pop();
+        for (const frame of frames) {
+          const eventLine = frame.match(/^event:\s*(.+)$/m);
+          const dataLines = [...frame.matchAll(/^data:\s*(.*)$/gm)];
+          if (!dataLines.length) continue;
+          const data = dataLines.map((m) => m[1].trim()).join('\n');
+          let payload;
+          try { payload = JSON.parse(data); } catch { continue; }
+          const event = eventLine ? eventLine[1].trim() : 'chunk';
+          if (event === 'chunk') { reply += payload.text; onChunk && onChunk(payload.text, reply); }
+          else if (event === 'error') throw new Error(payload.error || 'Tutor error');
+          else if (event === 'done') {
+            reply = payload.reply || reply;
+            visualization = payload.visualization || null;
+          }
         }
       }
+    } finally {
+      reader.releaseLock();
     }
     return { reply, visualization };
   }

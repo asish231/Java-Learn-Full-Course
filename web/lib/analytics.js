@@ -211,9 +211,13 @@ function companyReadinessList(topicScores) {
       ? recentMocks.reduce((s, m) => s + (m.score || 0), 0) / (recentMocks.length * 100)
       : null;
 
-    const readiness = clamp01(avgMastery * (0.55 + 0.45 * clamp01(coverage)) * (mockFactor == null ? 0.7 : 0.7 + 0.3 * mockFactor));
     const assessedTopics = topTopics.filter((t) => bySlug[t] && bySlug[t].features.attempts > 0);
-    const label = !assessedTopics.length ? 'Needs evidence'
+    const totalAttempts = assessedTopics.reduce((sum, t) => sum + (bySlug[t] ? bySlug[t].features.attempts : 0), 0);
+
+    const hasSufficientEvidence = assessedTopics.length > 0 && totalAttempts >= 3;
+    const rawReadiness = clamp01(avgMastery * (0.55 + 0.45 * clamp01(coverage)) * (mockFactor == null ? 0.7 : 0.7 + 0.3 * mockFactor));
+    const readiness = hasSufficientEvidence ? rawReadiness : 0;
+    const label = !hasSufficientEvidence ? 'Needs evidence'
       : readiness < 0.35 ? 'Foundation'
         : readiness < 0.65 ? 'Developing' : 'Topic ready';
     fits.push({
@@ -223,7 +227,7 @@ function companyReadinessList(topicScores) {
       fit: round4(readiness),
       percent: Math.round(readiness * 100),
       label,
-      confidence: assessedTopics.length >= 5 && recentMocks.length ? 'high' : assessedTopics.length >= 2 ? 'medium' : 'low',
+      confidence: hasSufficientEvidence && assessedTopics.length >= 5 && recentMocks.length ? 'high' : hasSufficientEvidence && assessedTopics.length >= 2 ? 'medium' : 'low',
       guidedCount: guided.length,
       questionCount: questions.length || co.questionCount || 0,
       topTopics,
@@ -381,7 +385,7 @@ module.exports = {
   computeInsights,
   getGraph,
   companyReadinessList,
-  companyFitList: companyReadinessList,
+  // companyReadinessList is the canonical name; companyFitList was a stale alias, now removed.
   clamp01,
   sigmoid
 };

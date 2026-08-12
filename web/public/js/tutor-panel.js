@@ -32,6 +32,7 @@ export class TutorPanel {
     this.busy = false;
     this.onVisualizationStep = onVisualizationStep;
     this.visualizers = [];
+    this.abortController = null;
 
     this.dot = h('span', { class: `ai-dot${ready ? '' : ' off'}` });
     this.messagesEl = h('div', { class: 'tutor-msgs' });
@@ -159,12 +160,13 @@ export class TutorPanel {
 
     try {
       let streamed = '';
+      this.abortController = new AbortController();
       const result = await api.askTutor({ message, context: this.contextForRequest(), mode }, (_chunk, full) => {
         streamed = full;
         const cleaned = full.replace(/```(?:dsa-visualization|json|visualization)?\s*\n?\{\s*"(?:version|category|title|steps)"[\s\S]*$/i, '').trim();
         placeholder.body.innerHTML = markdown(cleaned || '_building visualization…_');
         this.scrollDown();
-      });
+      }, { signal: this.abortController.signal });
       placeholder.body.innerHTML = markdown(result.reply || '_(no answer)_');
       if (result.visualization) {
         const visualizer = new AlgorithmVisualizer({
@@ -179,10 +181,17 @@ export class TutorPanel {
       toast(err.message, 'error');
     } finally {
       this.busy = false;
+      this.abortController = null;
       this.dot.classList.remove('busy');
       this.sendBtn.disabled = false;
       this.scrollDown();
     }
+  }
+
+  destroy() {
+    if (this.abortController) { this.abortController.abort(); this.abortController = null; }
+    this.visualizers.forEach((visualizer) => visualizer.destroy());
+    this.visualizers = [];
   }
 
   async clear() {

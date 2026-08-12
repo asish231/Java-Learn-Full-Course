@@ -64,6 +64,10 @@ export class CodeEditor {
     this.el.__codeEditor = this;
   }
 
+  destroy() {
+    if (this.ro) { this.ro.disconnect(); this.ro = null; }
+  }
+
   // -- value -----------------------------------------------------------------
 
   get value() { return this.textarea.value; }
@@ -214,9 +218,17 @@ export class CodeEditor {
     }
 
     if (event.key === 'Tab') {
-      event.preventDefault();
-      if (start !== end || event.shiftKey) this.indentSelection(event.shiftKey ? -1 : 1);
-      else this.insert(INDENT.slice(0, INDENT.length - ((this.columnOf(start) - 1) % INDENT.length)));
+      if (event.shiftKey || this.textarea.dataset.tabMode === 'indent') {
+        event.preventDefault();
+        if (start !== end || event.shiftKey) this.indentSelection(event.shiftKey ? -1 : 1);
+        else this.insert(INDENT.slice(0, INDENT.length - ((this.columnOf(start) - 1) % INDENT.length)));
+        return;
+      }
+      // Press Esc to toggle between tab-as-focus and tab-as-indent; default is focus.
+      return;
+    }
+    if (event.key === 'Escape') {
+      this.textarea.dataset.tabMode = this.textarea.dataset.tabMode === 'indent' ? 'focus' : 'indent';
       return;
     }
 

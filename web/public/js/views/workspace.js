@@ -15,7 +15,10 @@ import { icon } from '../icons.js';
 
 import { makeResizable } from '../splitter.js';
 
+let currentWorkspace = null;
+
 export async function render(root, route) {
+  if (currentWorkspace) { currentWorkspace.destroy(); currentWorkspace = null; }
   const questionId = route.parts[1];
   const company = route.query.company || '';
   const examMode = route.query.exam === '1' || !!route.query.mock;
@@ -32,7 +35,8 @@ export async function render(root, route) {
     return;
   }
 
-  new Workspace(root, body, question, company, examMode, route.query.mock).mount();
+  currentWorkspace = new Workspace(root, body, question, company, examMode, route.query.mock);
+  currentWorkspace.mount();
 }
 
 class Workspace {
@@ -48,9 +52,20 @@ class Workspace {
     this.solutionRevealed = false;
     this.solution = null;
     this.tutorOpen = false;
+    this.generation = 0;
+    this.tabGeneration = 0;
+    this.destroyed = false;
+  }
+
+  destroy() {
+    this.destroyed = true;
+    if (this.editor) this.editor.destroy();
+    if (this.tutor) this.tutor.destroy();
   }
 
   mount() {
+    this.generation++;
+    const gen = this.generation;
     const q = this.question;
     setTrackContext({ problemId: q.id, topics: q.topics || [], mockId: this.mockId || undefined });
     track('open_problem', { problemId: q.id, topics: q.topics || [] });
@@ -131,9 +146,14 @@ class Workspace {
     const tabs = [
       ['description', 'Description'],
       ['plan', 'Learn first'],
-      ['tests', `Test cases${q.tests.length ? ` (${q.tests.length})` : ''}`],
-      ['editorial', 'Editorial']
+      ['tests', `Test cases${q.tests.length ? ` (${q.tests.length})` : ''}`]
     ];
+    if (!this.examMode) {
+      tabs.push(['editorial', 'Editorial']);
+    }
+    if (this.examMode && this.tab === 'editorial') {
+      this.tab = 'description';
+    }
 
     this.tabsEl = h('nav', { class: 'tabs' },
       ...tabs.map(([id, label]) => h('button', {
@@ -178,7 +198,7 @@ class Workspace {
       nodes.push(h('ul', { class: 'constraint-list' }, ...q.constraints.map((c) => h('li', {}, c))));
     }
 
-    if (q.hints.length) {
+    if (q.hints.length && !this.examMode) {
       nodes.push(h('div', { class: 'section-title mt' }, 'Hints — open one at a time'));
       q.hints.forEach((hint, index) => {
         nodes.push(h('details', { class: 'hint' },
@@ -198,13 +218,17 @@ class Workspace {
 
   async renderPlan() {
     this.tabBody.replaceChildren(loading('Building your plan…'));
+    this.tabGeneration++;
+    const gen = this.tabGeneration;
     let plan;
     try {
       plan = await api.plan(this.question.id, this.company);
     } catch (err) {
+      if (gen !== this.tabGeneration) return;
       this.tabBody.replaceChildren(errorBox(err.message));
       return;
     }
+    if (gen !== this.tabGeneration) return;
 
     const nodes = [h('div', { class: 'prose' },
       h('p', {}, `Before solving #${plan.problem.number}, make sure these are solid. Everything below comes from your own curriculum and question bank.`))];
@@ -250,10 +274,12 @@ class Workspace {
         h('span', { class: difficultyClass(warmup.difficulty) }, warmup.difficulty)))));
     }
 
-    nodes.push(h('button', {
-      class: 'btn btn-primary mt',
-      onClick: () => { this.tutor.send('', 'prep'); }
-    }, icon('tutor', { size: 15 }), ' Ask tutor for step-by-step plan'));
+    if (!this.examMode) {
+      nodes.push(h('button', {
+        class: 'btn btn-primary mt',
+        onClick: () => { this.tutor.send('', 'prep'); }
+      }, icon('tutor', { size: 15 }), ' Ask tutor for step-by-step plan'));
+    }
 
     this.tabBody.replaceChildren(...nodes);
   }
@@ -285,6 +311,8 @@ class Workspace {
   }
 
   async renderEditorial() {
+    this.tabGeneration++;
+    const gen = this.tabGeneration;
     const q = this.question;
     const solved = q.progress && q.progress.status === 'solved';
 
@@ -313,13 +341,20 @@ class Workspace {
       return;
     }
 
+    if (this.examMode) {
+      this.tabBody.replaceChildren(h('div', { class: 'empty' }, 'Editorial is locked during the exam.'));
+      return;
+    }
+
     this.tabBody.replaceChildren(loading('Loading the editorial…'));
     try {
       this.solution = this.solution || await api.solution(q.id, this.company);
     } catch (err) {
+      if (gen !== this.tabGeneration) return;
       this.tabBody.replaceChildren(errorBox(err.message));
       return;
     }
+    if (gen !== this.tabGeneration) return;
 
     const complexity = this.solution.complexity || {};
     this.tabBody.replaceChildren(
@@ -333,7 +368,7 @@ class Workspace {
         class: 'btn mt',
         onClick: () => { this.editor.setValue(this.solution.solutionCode); toast('Reference solution loaded into the editor.', 'info'); }
       }, 'Load into editor'),
-      h('button', {
+      this.examMode ? null : h('button', {
         class: 'btn btn-primary mt',
         style: { marginLeft: '8px' },
         onClick: () => this.tutor.send('Compare my code with the reference solution and tell me what I should have seen.', 'chat')
@@ -502,6 +537,7 @@ class Workspace {
   }
 
   askTutorRow(prompt) {
+    if (this.examMode) return null;
     return h('div', { class: 'row mt-s' },
       h('button', { class: 'btn btn-sm', onClick: () => this.tutor.send(prompt, 'review') }, '🤖 Ask the tutor about this failure'));
   }
@@ -510,9 +546,10 @@ class Workspace {
     toast(`Solved #${this.question.number} ${this.question.title}`, 'success', 4200);
     this.question.progress = { ...(this.question.progress || {}), status: 'solved' };
     await refreshSummary().catch(() => {});
+    endSession({ status: 'problem_solved', problemId: this.question.id, accepted: true }).catch(() => {});
     this.resultsBody.append(h('div', { class: 'row mt-s wrap' },
-      h('button', { class: 'btn btn-sm', onClick: () => { this.tab = 'editorial'; this.renderProblemPane(); } }, icon('book', { size: 14 }), ' Read the editorial'),
-      h('button', { class: 'btn btn-sm', onClick: () => this.tutor.send('', 'debrief') }, icon('tutor', { size: 14 }), ' Debrief me'),
+      this.examMode ? null : h('button', { class: 'btn btn-sm', onClick: () => { this.tab = 'editorial'; this.renderProblemPane(); } }, icon('book', { size: 14 }), ' Read the editorial'),
+      this.examMode ? null : h('button', { class: 'btn btn-sm', onClick: () => this.tutor.send('', 'debrief') }, icon('tutor', { size: 14 }), ' Debrief me'),
       h('button', { class: 'btn btn-sm', onClick: () => navigate('#/practice') }, 'Next question →')));
   }
 }

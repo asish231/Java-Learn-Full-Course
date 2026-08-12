@@ -212,7 +212,7 @@ export function debounce(fn, wait = 300) {
 export function toast(message, kind = 'info', ms = 3200) {
   let host = document.getElementById('toastHost');
   if (!host) {
-    host = h('div', { id: 'toastHost', class: 'toast-host' });
+    host = h('div', { id: 'toastHost', class: 'toast-host', role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' });
     document.body.append(host);
   }
   const node = h('div', { class: `toast toast-${kind}` }, message);
@@ -224,6 +224,20 @@ export function toast(message, kind = 'info', ms = 3200) {
   }, ms);
 }
 
+/** Wrap async UI actions with toast feedback and no swallowed errors. */
+export function withToast(asyncFn, { loading, success, error, rethrow = false } = {}) {
+  return async (...args) => {
+    try {
+      const result = await asyncFn(...args);
+      if (success) toast(success, 'success');
+      return result;
+    } catch (err) {
+      toast(error || err.message || 'Something went wrong.', 'error', 4000);
+      if (rethrow) throw err;
+    }
+  };
+}
+
 /** Delegated copy-to-clipboard for markdown code blocks. */
 document.addEventListener('click', (event) => {
   const button = event.target.closest('.copy-btn');
@@ -231,5 +245,5 @@ document.addEventListener('click', (event) => {
   navigator.clipboard.writeText(button.dataset.copy || '').then(() => {
     button.textContent = 'Copied';
     setTimeout(() => { button.textContent = 'Copy'; }, 1400);
-  });
+  }).catch(() => toast('Could not copy to clipboard.', 'error'));
 });

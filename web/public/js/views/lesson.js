@@ -2,7 +2,7 @@
  * lesson.js — read a lesson on the left, run and edit it on the right,
  * with the tutor one click away.
  */
-import { h, markdown, toast, difficultyClass } from '../util.js';
+import { h, markdown, toast, difficultyClass, withToast } from '../util.js';
 import { pageHeader, fullBody, loading, errorBox } from '../shell.js';
 import { api } from '../api.js';
 import { CodeEditor } from '../editor.js';
@@ -286,15 +286,19 @@ class LessonView {
 
   async markComplete() {
     if (this.completed) return;
-    await api.markLesson(this.lesson.id, 'completed', this.lesson.minutes);
-    this.completed = true;
-    this.completeBtn.textContent = 'Completed ✓';
-    this.completeBtn.classList.remove('btn-primary');
-    toast(`“${this.lesson.title}” marked complete.`, 'success');
-    track('complete_lesson', { lessonId: this.lesson.id });
-    endSession({ status: 'lesson_complete', lessonId: this.lesson.id }).catch(() => {});
-    if (this.lesson.next) {
-      toast(`Up next: ${this.lesson.next.title}`, 'info', 4000);
+    try {
+      await api.markLesson(this.lesson.id, 'completed', this.lesson.minutes);
+      this.completed = true;
+      this.completeBtn.textContent = 'Completed ✓';
+      this.completeBtn.classList.remove('btn-primary');
+      toast(`“${this.lesson.title}” marked complete.`, 'success');
+      track('complete_lesson', { lessonId: this.lesson.id });
+      endSession({ status: 'lesson_complete', lessonId: this.lesson.id }).catch(() => {});
+      if (this.lesson.next) {
+        toast(`Up next: ${this.lesson.next.title}`, 'info', 4000);
+      }
+    } catch (err) {
+      toast(err.message || 'Could not mark complete.', 'error', 4000);
     }
   }
 }

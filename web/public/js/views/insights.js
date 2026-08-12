@@ -2,7 +2,7 @@
  * insights.js — Learning OS dashboard: mastery, company readiness, graph, records, notes.
  * Empty learner → CTAs only (no seeded metrics).
  */
-import { h, formatMinutes, markdown } from '../util.js';
+import { h, formatMinutes, markdown, toast } from '../util.js';
 import { pageHeader, pageBody, statCard, progressBar, loading, errorBox } from '../shell.js';
 import { api } from '../api.js';
 import { navigate } from '../state.js';
@@ -25,21 +25,39 @@ export async function render(root) {
 }
 
 async function renderDashboard(pad) {
-  let insights, revise, notes, goals, reminder, graph, diagnostics, revisionPlan;
-  try {
-    [insights, revise, notes, goals, reminder, graph, diagnostics, revisionPlan] = await Promise.all([
-      api.insights(true),
-      api.revise(),
-      api.notes(),
-      api.goalsToday(),
-      api.reminder(),
-      api.graph(),
-      api.diagnostics(),
-      api.revisionPlan(7)
-    ]);
-  } catch (err) {
-    pad.replaceChildren(errorBox(err.message));
+  const endpoints = [
+    { key: 'insights', fn: () => api.insights(true) },
+    { key: 'revise', fn: () => api.revise() },
+    { key: 'notes', fn: () => api.notes() },
+    { key: 'goals', fn: () => api.goalsToday() },
+    { key: 'reminder', fn: () => api.reminder() },
+    { key: 'graph', fn: () => api.graph() },
+    { key: 'diagnostics', fn: () => api.diagnostics() },
+    { key: 'revisionPlan', fn: () => api.revisionPlan(7) }
+  ];
+
+  const results = await Promise.all(endpoints.map(async (ep) => {
+    try {
+      return { key: ep.key, ok: true, value: await ep.fn() };
+    } catch (err) {
+      return { key: ep.key, ok: false, error: err.message };
+    }
+  }));
+
+  const data = {};
+  const errors = [];
+  for (const r of results) {
+    if (r.ok) data[r.key] = r.value;
+    else errors.push(`${r.key}: ${r.error}`);
+  }
+  const { insights, revise, notes, goals, reminder, graph, diagnostics, revisionPlan } = data;
+
+  if (errors.length && !Object.keys(data).length) {
+    pad.replaceChildren(errorBox(errors.join(' \u2022 ')));
     return;
+  }
+  if (errors.length) {
+    toast(`Some insights could not load: ${errors.join(' \u2022 ')}`, 'error', 5000);
   }
 
   const nodes = [];
@@ -68,6 +86,7 @@ async function renderDashboard(pad) {
             await renderDashboard(pad);
           } catch (err) {
             e.target.checked = !e.target.checked;
+            toast(err.message || 'Could not update goal.', 'error', 4000);
           }
         }
       }),

@@ -134,6 +134,13 @@ export function icon(name, { class: className = 'icon', size = 18, strokeWidth =
     case 'sparkles':
       return svgEl('svg', attrs, '<path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z"/>');
 
+    case 'plus':
+    case 'add':
+      return svgEl('svg', attrs, '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>');
+
+    case 'book':
+      return svgEl('svg', attrs, '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>');
+
     default:
       return svgEl('svg', attrs, '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>');
   }

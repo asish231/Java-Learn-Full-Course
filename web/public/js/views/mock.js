@@ -86,7 +86,10 @@ async function renderLobby(root) {
   pad.replaceChildren(...nodes);
 }
 
+let activeTimer = null;
+
 async function renderSession(root, id) {
+  if (activeTimer) { clearTimeout(activeTimer); activeTimer = null; }
   root.append(pageHeader({
     title: 'Assessment in progress',
     back: '#/mock',
@@ -95,6 +98,7 @@ async function renderSession(root, id) {
         class: 'btn btn-sm btn-primary',
         id: 'mock-finish-btn',
         onClick: async () => {
+          if (!confirm('Finish the mock exam? You cannot re-enter once it is scored.')) return;
           try {
             const m = await api.finishMock(id);
             toast(`Score: ${m.score}%`, 'success');
@@ -182,6 +186,7 @@ async function renderSession(root, id) {
       ? Date.now() + mock.remainingMs
       : Date.parse(mock.endsAt);
     const tick = () => {
+      activeTimer = null;
       const el = document.getElementById('mock-timer');
       if (!el) return;
       const ms = deadline - Date.now();
@@ -196,7 +201,7 @@ async function renderSession(root, id) {
       const m = Math.floor(ms / 60000);
       const s = Math.floor((ms % 60000) / 1000);
       el.textContent = `${m}:${String(s).padStart(2, '0')}`;
-      setTimeout(tick, 1000);
+      activeTimer = setTimeout(tick, 1000);
     };
     tick();
   }

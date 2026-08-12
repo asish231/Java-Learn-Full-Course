@@ -107,6 +107,37 @@ function addSimulation({ kind = 'mixed', scores = {}, note = '' } = {}) {
   });
 }
 
+const INTERVIEW_STAGES = [
+  { id: 'HR_SCREENING', title: '1. HR & Resume Screening', desc: 'Behavioral alignment, background, and candidate story.' },
+  { id: 'TECH_SCREENING', title: '2. Technical DSA Screening', desc: 'Timed Data Structures & Algorithms coding under constraints.' },
+  { id: 'SYSTEM_DESIGN', title: '3. System & Object Design', desc: 'Requirements, APIs, data modeling, and trade-off analysis.' },
+  { id: 'BAR_RAISER', title: '4. Bar Raiser & Debrief', desc: 'Deep technical reflection, leadership, and final decision.' }
+];
+
+function addInterviewRound({ company, role, stage = 'HR_SCREENING', scores = {}, note = '' } = {}) {
+  const stageIds = INTERVIEW_STAGES.map((s) => s.id);
+  if (!stageIds.includes(stage)) throw new Error('Choose a valid interview round stage.');
+  if (!String(company || '').trim() || !String(role || '').trim()) throw new Error('Company and role are required.');
+  
+  const values = Object.keys(RUBRIC).map((key) => Number(scores[key]));
+  if (values.some((v) => !Number.isInteger(v) || v < 1 || v > 4)) {
+    throw new Error('Every interview rubric dimension requires a score from 1 to 4.');
+  }
+  const avgScore = values.reduce((sum, v) => sum + v, 0) / values.length;
+  const passed = avgScore >= 3.0;
+  
+  return store.addPlacementRecord('simulations', {
+    kind: `round_${stage}`,
+    stage,
+    company: String(company).trim().slice(0, 120),
+    role: String(role).trim().slice(0, 120),
+    scores: Object.fromEntries(Object.keys(RUBRIC).map((key, index) => [key, values[index]])),
+    score: Math.round((avgScore / 4) * 100),
+    passed,
+    note: String(note).trim().slice(0, 2000)
+  });
+}
+
 function addOutcome({ company, role, result, applicationId = null, note = '' } = {}) {
   if (!['offer', 'rejected', 'withdrawn', 'no-response'].includes(result)) throw new Error('Choose a real application outcome.');
   if (!String(company || '').trim() || !String(role || '').trim()) throw new Error('Company and role are required.');
@@ -116,4 +147,4 @@ function addOutcome({ company, role, result, applicationId = null, note = '' } =
   });
 }
 
-module.exports = { TRACKS, RUBRIC, dashboard, addEvidence, addApplication, addSimulation, addOutcome };
+module.exports = { TRACKS, RUBRIC, INTERVIEW_STAGES, dashboard, addEvidence, addApplication, addSimulation, addOutcome, addInterviewRound };

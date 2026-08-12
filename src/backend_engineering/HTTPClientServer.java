@@ -5,8 +5,10 @@ import java.net.*;
 import java.util.*;
 
 /**
- * 01. Client-Server Architecture & HTTP Server implementation from scratch.
- * Demonstrates Socket listening, HTTP Request parsing, Method matching, and Header/Body HTTP Response formatting.
+ * 01. Client-Server Architecture & HTTP message parsing.
+ * Demonstrates HTTP Request/Response structure and message formatting using a hard-coded
+ * request string. It does not open a server socket; the goal is to learn the wire format
+ * before building a real server.
  */
 public class HTTPClientServer {
 

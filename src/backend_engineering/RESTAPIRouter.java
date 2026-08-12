@@ -4,7 +4,8 @@ import java.util.*;
 
 /**
  * 02. RESTful API Router & Controller pipeline.
- * Demonstrates HTTP Route dispatching, URL path parameters, and Middleware pipeline (Logging -> Auth -> Handler).
+ * Demonstrates HTTP route dispatching, query parameters, and a middleware pipeline (Logging -> Auth -> Handler).
+ * URL path parameters (e.g. /users/:id) are not yet implemented; dispatch currently matches exact paths.
  */
 public class RESTAPIRouter {
 

@@ -7,7 +7,7 @@
 import { h, toast, esc } from './util.js';
 import { api } from './api.js';
 import { state, loadBootstrap, applyTheme, onRoute, navigate, parseRoute } from './state.js';
-import { startFocus, track } from './track.js';
+import { startFocus, track, endFocus, setTrackContext } from './track.js';
 import { icon, iconHTML } from './icons.js';
 
 const NAV = [
@@ -95,7 +95,7 @@ function renderShell() {
 function setActiveNav(name) {
   const active = {
     home: 'home', learn: 'learn', lesson: 'learn', practice: 'practice', problem: 'practice',
-    progress: 'progress', insights: 'insights', mock: 'mock', career: 'career'
+    progress: 'progress', insights: 'insights', mock: 'mock', career: 'career', placement: 'placement'
   }[name];
   railEl.querySelectorAll('[data-nav]').forEach((node) => {
     const selected = node.dataset.nav === active;
@@ -105,16 +105,24 @@ function setActiveNav(name) {
   });
 }
 
+let routeGeneration = 0;
+
 async function renderRoute(route) {
+  const gen = ++routeGeneration;
   setActiveNav(route.name);
+  endFocus({ reason: 'navigate' });
+  setTrackContext({});
   mainEl.replaceChildren();
 
   const loader = VIEWS[route.name] || VIEWS.home;
   try {
     const view = await loader();
+    if (gen !== routeGeneration) return;
     await view.render(mainEl, route);
+    if (gen !== routeGeneration) return;
     document.title = `${mainEl.querySelector('h1')?.textContent || 'Java DSA Studio'} — Java DSA Studio`;
   } catch (err) {
+    if (gen !== routeGeneration) return;
     console.error(err);
     mainEl.replaceChildren(h('div', { class: 'empty' }, `⚠️ ${err.message}`));
   }

@@ -98,6 +98,9 @@ async function renderCounsel(pad) {
       placeholder: 'Ask about targets, timeline, or what to study…'
     });
     const send = h('button', { class: 'btn btn-primary mt-s' }, 'Send');
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send.click(); }
+    });
     send.onclick = async () => {
       const message = input.value.trim();
       if (!message || send.disabled) return;
