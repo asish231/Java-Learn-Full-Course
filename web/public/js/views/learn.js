@@ -48,7 +48,7 @@ async function renderIndex(root) {
   let track = 'all';
   const grid = h('div', { class: 'grid grid-2' });
 
-  const filters = h('div', { class: 'row wrap', style: { marginBottom: '18px' } },
+  const filters = h('div', { class: 'filter-bar', style: { marginBottom: '18px' } },
     ...TRACKS.map((option) => h('button', {
       class: `chip chip-btn${track === option.id ? ' active' : ''}`,
       onClick: (event) => {
@@ -79,9 +79,10 @@ function chapterCard(chapter) {
   },
   h('div', { class: 'ch-head' },
     h('span', { class: 'ch-icon' }, chapter.icon),
-    h('div', { style: { flex: '1' } },
+    h('div', { style: { flex: '1', minWidth: '0' } },
       h('h3', {}, chapter.title),
-      h('div', { class: 'dim' }, `${chapter.done}/${chapter.lessonCount} lessons · ${formatMinutes(chapter.minutes)}`))),
+      h('div', { class: 'dim' }, `${chapter.done}/${chapter.lessonCount} lessons · ${formatMinutes(chapter.minutes)}`)),
+    chapter.track ? h('span', { class: 'chip' }, chapter.track) : null),
   progressBar(chapter.percent, chapter.percent === 100),
   h('p', { class: 'muted' }, chapter.summary),
   h('div', { class: 'row wrap' }, ...(chapter.topics || []).slice(0, 4).map((topic) => h('span', { class: 'chip' }, topic))));

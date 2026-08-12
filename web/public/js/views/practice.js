@@ -25,7 +25,7 @@ export async function render(root, route) {
 // ---------------------------------------------------------------------------
 
 async function renderIndex(root) {
-  const searchInput = h('input', { class: 'input', placeholder: 'Search companies…', style: { width: '220px' } });
+  const searchInput = h('input', { class: 'input topbar-search', placeholder: 'Search companies…', 'aria-label': 'Search companies' });
 
   root.append(pageHeader({
     title: 'Practice',

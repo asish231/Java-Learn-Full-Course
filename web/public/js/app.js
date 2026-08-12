@@ -68,24 +68,29 @@ let railEl;
 
 function renderShell() {
   railEl = h('nav', { class: 'rail', 'aria-label': 'Primary navigation' },
-    h('div', { class: 'rail-logo', title: 'Java DSA Studio' }, icon('logo', { size: 26 })),
-    ...NAV.map((item) => h('button', {
-      class: 'rail-btn', dataset: { nav: item.id },
-      onClick: () => { location.hash = item.hash; }
-    }, icon(item.iconName, { size: 18 }), h('span', { class: 'rail-label' }, item.label))),
+    h('a', { class: 'rail-brand', href: '#/', 'aria-label': 'Java DSA Studio home' },
+      h('div', { class: 'rail-logo' }, icon('logo', { size: 22 })),
+      h('span', { class: 'rail-wordmark' }, 'DSA Studio')),
+    h('div', { class: 'rail-nav' },
+      ...NAV.map((item) => h('button', {
+        class: 'rail-btn', dataset: { nav: item.id },
+        'aria-label': item.label, title: item.label,
+        onClick: () => { location.hash = item.hash; }
+      }, icon(item.iconName, { size: 18 }), h('span', { class: 'rail-label' }, item.label)))),
     h('div', { class: 'rail-spacer' }),
-    h('button', {
-      class: 'rail-btn', title: 'Search (⌘K)',
-      onClick: () => openPalette()
-    }, icon('search', { size: 18 }), h('span', { class: 'rail-label' }, 'Search ⌘K')),
-    h('button', {
-      class: 'rail-btn', title: 'Toggle theme',
-      onClick: () => applyTheme(state.theme === 'dark' ? 'light' : 'dark')
-    }, icon('theme', { size: 18 }), h('span', { class: 'rail-label' }, 'Theme')),
-    h('button', {
-      class: 'rail-btn', title: 'Preferences',
-      onClick: () => startOnboarding(true)
-    }, icon('gear', { size: 18 }), h('span', { class: 'rail-label' }, 'Preferences'))
+    h('div', { class: 'rail-utils' },
+      h('button', {
+        class: 'rail-btn', 'aria-label': 'Search', title: 'Search (⌘K)',
+        onClick: () => openPalette()
+      }, icon('search', { size: 18 }), h('span', { class: 'rail-label' }, 'Search')),
+      h('button', {
+        class: 'rail-btn', 'aria-label': 'Toggle theme', title: 'Toggle theme',
+        onClick: () => applyTheme(state.theme === 'dark' ? 'light' : 'dark')
+      }, icon('theme', { size: 18 }), h('span', { class: 'rail-label' }, 'Theme')),
+      h('button', {
+        class: 'rail-btn', 'aria-label': 'Preferences', title: 'Preferences',
+        onClick: () => startOnboarding(true)
+      }, icon('gear', { size: 18 }), h('span', { class: 'rail-label' }, 'Prefs')))
   );
 
   mainEl = h('main', { class: 'main', id: 'main-content', tabindex: '-1' });

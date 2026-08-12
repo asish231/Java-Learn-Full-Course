@@ -69,6 +69,7 @@ export async function render(root, _route) {
   // ---- hero --------------------------------------------------------------
   const current = next.currentChapter;
   nodes.push(h('section', { class: 'hero' },
+    h('p', { class: 'hero-kicker' }, current ? 'Pick up where you left off' : 'Your studio'),
     h('h2', {}, current ? `Continue: ${current.title}` : 'Start your first chapter'),
     h('p', {}, current
       ? `${current.done} of ${current.total} lessons done. ${current.summary}`
@@ -78,10 +79,10 @@ export async function render(root, _route) {
         ? h('button', {
           class: 'btn btn-primary btn-lg',
           onClick: () => { location.hash = `#/lesson/${current.nextLesson.id}`; }
-        }, `▶ ${current.done ? 'Continue' : 'Start'}: ${current.nextLesson.title}`)
+        }, `${current.done ? 'Continue' : 'Start'}: ${current.nextLesson.title}`)
         : h('button', { class: 'btn btn-primary btn-lg', onClick: () => { location.hash = '#/learn'; } }, 'Choose a chapter'),
       h('button', { class: 'btn btn-lg', onClick: () => { location.hash = '#/practice'; } }, 'Solve a question'),
-      current ? h('div', { style: { flex: '1 1 220px', alignSelf: 'center' } }, progressBar(current.percent)) : null)));
+      current ? h('div', { class: 'hero-progress' }, progressBar(current.percent)) : null)));
 
   // ---- stats -------------------------------------------------------------
   nodes.push(h('div', { class: 'grid grid-4' },

@@ -1,7 +1,5 @@
 /**
-/**
- * icons.js — SVG Icon system for Java DSA Studio.
- * Clean, lightweight, professional SVG icons replacing plain emojis.
+ * icons.js — SVG icons for Java DSA Studio.
  */
 
 const SVG_NS = 'http://www.w3.org/2000/svg';

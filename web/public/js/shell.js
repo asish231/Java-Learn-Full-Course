@@ -5,10 +5,11 @@ import { icon } from './icons.js';
 export function pageHeader({ title, crumb, back, actions = [] } = {}) {
   return h('header', { class: 'topbar' },
     back ? h('button', { class: 'btn btn-ghost btn-sm', 'aria-label': 'Go back', onClick: () => { location.hash = back; } }, icon('back', { size: 16 })) : null,
-    h('h1', {}, title || ''),
-    crumb ? h('span', { class: 'crumb' }, crumb) : null,
+    h('div', { class: 'topbar-titles' },
+      h('h1', {}, title || ''),
+      crumb ? h('span', { class: 'crumb' }, crumb) : null),
     h('div', { class: 'spacer' }),
-    ...actions
+    h('div', { class: 'topbar-actions' }, ...actions)
   );
 }
 
