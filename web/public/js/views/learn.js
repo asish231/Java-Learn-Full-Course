@@ -20,7 +20,8 @@ const TRACKS = [
   { id: 'all', label: 'Everything' },
   { id: 'foundations', label: 'Java foundations' },
   { id: 'dsa', label: 'Data structures & algorithms' },
-  { id: 'backend', label: 'Backend engineering' }
+  { id: 'backend', label: 'Backend engineering' },
+  { id: 'career', label: 'Interview prep' }
 ];
 
 async function renderIndex(root) {
@@ -89,13 +90,19 @@ function chapterCard(chapter) {
 // ---------------------------------------------------------------------------
 
 async function renderChapter(root, chapterId) {
+  root.append(pageHeader({ title: 'Chapter', crumb: 'Loading…', back: '#/learn' }));
+  const body = pageBody(loading('Loading this chapter…'));
+  root.append(body);
+
   let chapter;
   try {
     chapter = await api.chapter(chapterId);
   } catch (err) {
-    root.append(pageHeader({ title: 'Chapter', back: '#/learn' }), pageBody(errorBox(err.message)));
+    body.firstChild.replaceChildren(errorBox(err.message));
     return;
   }
+
+  root.replaceChildren();
 
   const nextLesson = chapter.lessons.find((lesson) => lesson.status !== 'completed') || chapter.lessons[0];
   const done = chapter.lessons.filter((lesson) => lesson.status === 'completed').length;

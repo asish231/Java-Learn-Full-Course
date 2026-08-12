@@ -407,7 +407,14 @@ class Workspace {
       filename: 'Solution.java',
       onChange: autosave,
       onRun: () => this.execute(q.guided),
-      onSave: () => { api.saveDraft(q.id, this.editor.value); toast('Draft saved.', 'success', 1400); }
+      onSave: async () => {
+        try {
+          await api.saveDraft(q.id, this.editor.value);
+          toast('Draft saved.', 'success', 1400);
+        } catch (err) {
+          toast(err.message || 'Could not save draft.', 'error');
+        }
+      }
     });
 
     this.resultsHead = h('div', { class: 'results-head', onClick: () => this.resultsEl.classList.toggle('collapsed') },

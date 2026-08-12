@@ -238,9 +238,16 @@ async function checkServer() {
       scores: { problemFraming: 4, technicalDepth: 3, structure: 2, evidence: 4, reflection: 3 }
     });
     check('POST /api/placement/simulations scores the complete rubric', simulation.status === 201 && simulation.body.score === 80);
+    const round = await post(`http://localhost:${PORT}/api/placement/rounds`, {
+      company: 'Example Co', role: 'Backend Engineer', stage: 'TECH_SCREENING',
+      scores: { problemFraming: 4, technicalDepth: 3, structure: 3, evidence: 3, reflection: 3 }
+    });
+    check('POST /api/placement/rounds records a real interview stage', round.status === 201
+      && round.body.stage === 'TECH_SCREENING' && round.body.passed === true);
     const placementAfter = await get(`http://localhost:${PORT}/api/placement`);
     check('placement dashboard derives progress from evidence only', placementAfter.body.tracks
       .find((track) => track.id === 'system-design').percent === 20);
+    check('placement dashboard includes study briefs', Boolean(placementAfter.body.briefs && placementAfter.body.briefs['api-data-model']));
 
     const exported = await get(`http://localhost:${PORT}/api/data/export`);
     check('GET /api/data/export is checksummed', exported.status === 200

@@ -37,6 +37,34 @@ const RUBRIC = {
   reflection: 'Identifies limitations and what would be improved next.'
 };
 
+const ITEM_BRIEFS = {
+  'processes-threads': 'A process is an isolated address space; a thread shares that space with siblings. Interviewers want context-switch cost, when you pick a process (crash isolation, GIL-free parallelism) vs a thread (cheap shared memory), and what a race looks like without a lock.',
+  'memory-concurrency': 'Explain heap vs stack, a mutex vs a concurrent collection, and deadlock (wait-for cycle). Have one story: a bug you found with a race, how you reproduced it, and the lock or immutability that fixed it.',
+  'sql-indexes-transactions': 'Walk a SELECT with an index (B-tree, covering vs lookup), then isolation: dirty read, non-repeatable read, phantom. Know when you want a transaction vs an idempotent retry, and why SELECT FOR UPDATE exists.',
+  'http-tcp-dns': 'DNS → TCP handshake → TLS → HTTP. Say what a 301 vs 302 vs 304 is, why HTTP/2 multiplexes, and where a timeout should live (client, gateway, DB). Draw the packets if asked.',
+  'oop-solid': 'SOLID is a checklist, not a religion. Give one class you split because it had two reasons to change, one interface you kept small, and one place inheritance would have been worse than composition.',
+  'requirements-estimation': 'Start with users, QPS, payload size, and read/write ratio. Back-of-envelope: 100M users × 10% DAU × 20 requests ≈ 2M req/day ≈ 25 QPS average, spike 10×. Storage = records × bytes × replication. State assumptions out loud.',
+  'api-data-model': 'Write the API first: resources, verbs, error bodies, idempotency keys. Then tables or documents, primary keys, and what is denormalized for the hot read. Call out the consistency you are giving up.',
+  'caching-queues': 'Cache-aside: read cache, miss → DB → fill. Invalidate on write or set a TTL. Queues absorb spikes and decouple workers; say at-least-once vs exactly-once, and how you make handlers idempotent.',
+  'partitioning-replication': 'Partition by a key that spreads load (user id, not created_at). Replication: leader-follower for reads, quorum if you cannot lose writes. Name the failure: hot partition, replication lag, split brain.',
+  'reliability-observability': 'SLI/SLO, retries with jitter, circuit breakers, and what you log vs metric vs trace. An interviewer wants the dashboard you would look at at 2am, not a tool name.',
+  'introduction': '60 seconds: who you are, the strongest proof you can ship, the role you want, and one sentence on why this company. No life story. Practise until it is boring.',
+  'ownership': 'STAR: you noticed the gap, you decided, you shipped, you measured. Use "I" for decisions. If it was a team win, still name the part that would have failed without you.',
+  'conflict': 'Disagree on the work, not the person. State their view fairly, the risk you saw, the experiment or data you proposed, and the outcome. Never end on "they were wrong."',
+  'failure-learning': 'Pick a real miss. What you believed, what broke, who was affected, the fix, and the system change so it cannot recur. Blame the process you owned, not a teammate.',
+  'impact-leadership': 'Leadership here means moving people or a metric without a title. Mentoring, a design review you ran, a rollback you called. Tie it to a number or a decision that stuck.',
+  'resume-baseline': 'One page if you have under 10 years. Name, contacts, 3–5 bullets per role, tech that is true. Drop "responsible for." Every bullet should survive "so what?"',
+  'impact-bullets': 'Verb + what + constraint + result. "Cut p95 checkout from 1.4s to 160ms by batching an N+1 query on 2M daily orders." If you cannot measure it, describe the decision and who uses it.',
+  'project-architecture': 'For each project: users, API, data store, auth, the hardest component you designed. Be ready to redraw it from memory in 3 minutes.',
+  'project-tradeoffs': 'Name two designs you rejected and why (latency, cost, complexity, team size). "We used Postgres instead of a graph DB because the access pattern was relational and we had one backend engineer."',
+  'portfolio-proof': 'A public repo, a live URL, or a design doc. The interviewer will ask to see code. Pin the README to how to run it and what you would change at 10× traffic.',
+  'target-list': '20 companies you can explain in one sentence each. Mix reach, fit, and safety. Track them here — a spreadsheet you never open is not a pipeline.',
+  'tailored-resume': 'Mirror the job\'s language only where it is true. Reorder bullets so the first two match the posting. One tailored page beats five generic ones.',
+  'referrals': 'Ask a specific person for a specific role with a 5-line blurb they can forward. Do not ask strangers to "see if there is anything."',
+  'follow-ups': 'After apply: one polite check-in at 7–10 days. After interview: thank-you that restates one trade-off you discussed. Stop at two pings.',
+  'outcome-review': 'Log offer / reject / ghost here. After 10 real outcomes you can compare your own history — still not a hiring probability. Adjust the next application from what actually happened.'
+};
+
 function trackById(id) {
   return TRACKS.find((track) => track.id === id);
 }
@@ -70,7 +98,9 @@ function dashboard() {
       note: outcomes.length >= 10
         ? 'Recommendations may compare your own preparation history; they still do not predict hiring.'
         : 'No hiring prediction is shown. Ten or more real outcomes are required even for personal historical comparison.'
-    }
+    },
+    briefs: ITEM_BRIEFS,
+    stages: INTERVIEW_STAGES
   };
 }
 
@@ -147,4 +177,4 @@ function addOutcome({ company, role, result, applicationId = null, note = '' } =
   });
 }
 
-module.exports = { TRACKS, RUBRIC, INTERVIEW_STAGES, dashboard, addEvidence, addApplication, addSimulation, addOutcome, addInterviewRound };
+module.exports = { TRACKS, RUBRIC, INTERVIEW_STAGES, ITEM_BRIEFS, dashboard, addEvidence, addApplication, addSimulation, addOutcome, addInterviewRound };

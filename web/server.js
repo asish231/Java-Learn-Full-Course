@@ -130,6 +130,7 @@ function placementWrite(handler) {
 app.post('/api/placement/evidence', placementWrite(placement.addEvidence));
 app.post('/api/placement/applications', placementWrite(placement.addApplication));
 app.post('/api/placement/simulations', placementWrite(placement.addSimulation));
+app.post('/api/placement/rounds', placementWrite(placement.addInterviewRound));
 app.post('/api/placement/outcomes', placementWrite(placement.addOutcome));
 
 /** Personalised "what next" queue: unfinished path chapters + due problems. */
@@ -651,11 +652,27 @@ app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   const stats = catalog.stats();
+  const sandbox = judge.securityStatus();
   console.log(`\n    Java DSA Studio  →  http://localhost:${PORT}\n`);
   console.log(`      ${stats.chapters} chapters · ${stats.lessons} lessons`);
   console.log(`      ${stats.guidedProblems} guided problems with test cases`);
   console.log(`      ${stats.companies} companies · ${stats.companyQuestions} interview questions`);
-  console.log(`      AI tutor: ${tutor.isConfigured() ? `${tutor.MODEL} ready` : 'disabled (set MERCURY_API_KEY in web/.env)'}\n`);
+  console.log(`      AI tutor: ${tutor.isConfigured() ? `${tutor.MODEL} ready` : 'disabled (set MERCURY_API_KEY in web/.env)'}`);
+  if (!sandbox.seatbelt) {
+    console.log('      Sandbox: JVM process limits only (macOS Seatbelt is unavailable on this OS)\n');
+  } else {
+    console.log('      Sandbox: macOS Seatbelt (network denied)\n');
+  }
 });
+
+function shutdown(signal) {
+  console.log(`\n${signal} received — flushing learner data…`);
+  try { store.flush(); } catch (err) { console.error('[store] flush failed:', err.message); }
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 2000).unref();
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));

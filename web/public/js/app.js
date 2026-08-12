@@ -222,16 +222,21 @@ function startOnboarding(isSettings = false) {
   }
 
   async function finish(skipped) {
-    host.classList.add('hidden');
-    if (skipped && !isSettings) {
-      state.profile = await api.saveProfile({ goal: 'fundamentals', pathId: 'zero-to-hero' });
-      navigate('#/');
+    try {
+      if (skipped && !isSettings) {
+        state.profile = await api.saveProfile({ goal: 'fundamentals', pathId: 'zero-to-hero' });
+      } else if (!skipped) {
+        state.profile = await api.saveProfile(draft);
+      } else {
+        host.classList.add('hidden');
+        return;
+      }
+    } catch (err) {
+      toast(err.message || 'Could not save your plan.', 'error');
       return;
     }
-    if (skipped) return;
-
-    state.profile = await api.saveProfile(draft);
-    toast(`You are on the ${draft.pathId || 'zero-to-hero'} path. Let's go.`, 'success');
+    host.classList.add('hidden');
+    if (!skipped) toast(`You are on the ${draft.pathId || 'zero-to-hero'} path. Let's go.`, 'success');
     navigate('#/');
   }
 
@@ -243,6 +248,7 @@ function startOnboarding(isSettings = false) {
 // ===========================================================================
 
 let paletteItems = null;
+let paletteClose = null;
 
 async function buildPaletteItems() {
   if (paletteItems) return paletteItems;
@@ -275,14 +281,20 @@ async function buildPaletteItems() {
 }
 
 async function openPalette() {
+  if (paletteClose) paletteClose();
   const items = await buildPaletteItems();
   let filtered = items.slice(0, 40);
   let cursor = 0;
 
-  const list = h('div', { class: 'palette-list' });
-  const input = h('input', { placeholder: 'Search chapters, lessons, problems, companies…', autofocus: 'true' });
-  const backdrop = h('div', { class: 'palette-backdrop', onClick: (e) => { if (e.target === backdrop) close(); } },
-    h('div', { class: 'palette' }, input, list));
+  const list = h('div', { class: 'palette-list', id: 'palette-results' });
+  const input = h('input', {
+    placeholder: 'Search chapters, lessons, problems, companies…',
+    autofocus: 'true',
+    'aria-label': 'Search the studio',
+    'aria-controls': 'palette-results'
+  });
+  const panel = h('div', { class: 'palette', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Command palette' }, input, list);
+  const backdrop = h('div', { class: 'palette-backdrop', onClick: (e) => { if (e.target === backdrop) close(); } }, panel);
 
   function paint() {
     list.replaceChildren(...filtered.map((item, index) => h('div', {
@@ -291,7 +303,12 @@ async function openPalette() {
     }, item.label, h('span', { class: 'palette-kind' }, item.kind))));
   }
 
-  function close() { backdrop.remove(); document.removeEventListener('keydown', onKey); }
+  function close() {
+    backdrop.remove();
+    document.removeEventListener('keydown', onKey);
+    if (paletteClose === close) paletteClose = null;
+  }
+  paletteClose = close;
 
   function onKey(event) {
     if (event.key === 'Escape') { close(); }

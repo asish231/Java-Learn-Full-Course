@@ -20,8 +20,8 @@ Requires **Node 18+** and a **JDK** on your `PATH` (`javac` / `java` are used to
 
 | | |
 |---|---|
-| **16 chapters / 178 runnable lessons** | The `src/` curriculum: every `.java` file is a lesson you can read, edit and execute in the browser |
-| **Guided problem bank** | Interview problems with a full statement, worked examples, constraints, three staged hints, an editorial and machine-checked test cases |
+| **17 chapters / 193 runnable lessons** | The `src/` curriculum: every `.java` file is a lesson you can read, edit and execute in the browser |
+| **71 guided problems** | Interview classics with a full statement, worked examples, constraints, three staged hints, an editorial and machine-checked test cases |
 | **654 companies / 17,641 questions** | The `leetcode_companywise/` lists, filterable by recency and difficulty |
 | **AI tutor (Mercury 2)** | Streams answers, remembers you between sessions, and reads the problem + your editor + your last run |
 | **Progress tracker** | Streak, activity heatmap, per-chapter completion, strong/weak topics, saved drafts |
@@ -77,7 +77,7 @@ The studio tracks **your real behaviour** only — no seeded mastery, fake strea
 | **Daily goals** | Checklist from your path + weak/due topics, tickable on Home **and** Insights |
 | **Timed mocks** | Real guided bank + Java judge. The clock is enforced **on the server**: a late answer is refused and the session auto-submits; answering the last item scores it immediately |
 | **Placement assessment v1** | Deterministic topic diagnostics, balanced difficulty blueprints, server-only generated cases, honest confidence labels, and an evidence-backed seven-day revision plan. Readiness measures topic preparation, **not hiring probability** |
-| **Active-learning lessons** | Prerequisite status, retrieval checkpoints, misconception callouts, and post-lesson reflections are attached to the 178 runnable lessons. Retrieval evidence is stored separately and never counted as a solved coding problem |
+| **Active-learning lessons** | Prerequisite status, retrieval checkpoints, misconception callouts, and post-lesson reflections are attached to the 193 runnable lessons. Retrieval evidence is stored separately and never counted as a solved coding problem |
 | **Secure local judge** | Each submission runs in a private temporary directory with JVM memory/CPU/time limits. On macOS, Seatbelt also blocks user-profile reads, external writes, network access, and subprocesses; security probes run in `npm run check` |
 | **Durable data** | State writes use fsync + atomic rename, rotate three valid backups, and recover from corruption. Progress offers checksummed export/import; modified exports are rejected |
 | **Complete placement prep** | `#/placement` adds CS fundamentals, system design, behavioral communication, resume/projects, applications, and transparent interview rubrics. All progress comes from recorded evidence; outcomes never become a claimed hiring probability |

@@ -39,7 +39,9 @@ const TOPICS = {
   'dfs': { label: 'Depth-First Search', chapter: 'module13_graph_algorithms' },
   'bit-manipulation': { label: 'Bit Manipulation', chapter: 'module01_foundations' },
   'math': { label: 'Math & Number Theory', chapter: 'module01_foundations' },
-  'design': { label: 'Data Structure Design', chapter: 'module03_linked_lists' }
+  'design': { label: 'Data Structure Design', chapter: 'module03_linked_lists' },
+  'system-design': { label: 'System Design', chapter: 'interview_prep' },
+  'behavioral': { label: 'Behavioral Interviews', chapter: 'interview_prep' }
 };
 
 const LEVEL_META = {
@@ -344,6 +346,25 @@ const CHAPTERS = [
       'Reason about cache eviction and TTLs'
     ],
     prerequisites: ['module05_hashing']
+  },
+  {
+    id: 'interview_prep',
+    dir: 'interview_prep',
+    order: 16,
+    icon: '🎯',
+    title: 'Interview Prep Beyond DSA',
+    track: 'career',
+    minutes: 120,
+    summary: 'STAR stories, system-design walkthroughs, resume bullets, and a live-coding playbook — the rounds that are not a LeetCode submit.',
+    why: 'Offers fail when the coding round is the only thing you practised. Interviewers also grade how you design, how you talk, and whether your projects survive a hiring-manager skim.',
+    topics: ['system-design', 'behavioral', 'design'],
+    objectives: [
+      'Tell five STAR stories in 90 seconds each without reading notes',
+      'Walk a URL shortener and a rate limiter from requirements to trade-offs',
+      'Rewrite resume bullets as verb + constraint + measured result',
+      'Narrate a live coding round: restate, brute force, tests, then code'
+    ],
+    prerequisites: ['module02_arrays_and_strings']
   }
 ];
 
@@ -370,7 +391,7 @@ const PATHS = [
     chapters: [
       'module02_arrays_and_strings', 'module05_hashing', 'module04_stacks_and_queues',
       'module06_trees_and_bst', 'module09_sorting_and_searching',
-      'module13_graph_algorithms', 'module12_dynamic_programming'
+      'module13_graph_algorithms', 'module12_dynamic_programming', 'interview_prep'
     ]
   },
   {
@@ -392,7 +413,7 @@ const PATHS = [
     tagline: 'Systems, not just puzzles',
     description: 'Data structures that back real services, then build an HTTP server, REST router, JWT auth and a cache from scratch.',
     weeks: 6,
-    chapters: ['quickstart', 'module05_hashing', 'module03_linked_lists', 'backend_engineering']
+    chapters: ['quickstart', 'module05_hashing', 'module03_linked_lists', 'backend_engineering', 'interview_prep']
   }
 ];
 

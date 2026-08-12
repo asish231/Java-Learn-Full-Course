@@ -335,6 +335,12 @@ function testPlacementEvidence() {
   }, note: 'Practised a cache design interview.' });
   check('simulation score is transparent rubric math', simulation.score === 80);
 
+  const round = placement.addInterviewRound({
+    company: 'Example Co', role: 'Backend Engineer', stage: 'TECH_SCREENING',
+    scores: { problemFraming: 4, technicalDepth: 3, structure: 3, evidence: 3, reflection: 3 }
+  });
+  check('interview round uses a named stage', round.stage === 'TECH_SCREENING' && round.passed === true);
+
   const application = placement.addApplication({ company: 'Example Co', role: 'Backend Engineer', status: 'applied' });
   placement.addOutcome({ company: application.company, role: application.role, result: 'rejected', applicationId: application.id });
   const dashboard = placement.dashboard();

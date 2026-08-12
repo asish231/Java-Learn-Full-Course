@@ -37,6 +37,7 @@ export const api = {
   addPlacementEvidence: (body) => request('/api/placement/evidence', { method: 'POST', body }),
   addApplication: (body) => request('/api/placement/applications', { method: 'POST', body }),
   addSimulation: (body) => request('/api/placement/simulations', { method: 'POST', body }),
+  addInterviewRound: (body) => request('/api/placement/rounds', { method: 'POST', body }),
   addOutcome: (body) => request('/api/placement/outcomes', { method: 'POST', body }),
 
   chapters: () => request('/api/chapters'),
